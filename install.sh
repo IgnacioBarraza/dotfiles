@@ -53,6 +53,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load logging system
 source "$SCRIPT_DIR/scripts/logging.sh"
+source "$SCRIPT_DIR/scripts/base_packages.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0
@@ -143,6 +144,7 @@ if ! grep -q "Ubuntu 26.04" /etc/os-release; then
     exit 1
 fi
 
+# Initialize logs
 LOG_DIR="Dotfiles-Logs"
 init_logging
 
@@ -152,3 +154,11 @@ if [[ $EUID -eq 0 ]]; then
     printf "\n%.0s" {1..2}
     exit 1
 fi
+
+log_info "Starting main installation at $(date)"
+    
+# Install base packages
+install_base_packages || {
+    log_error "Base packages installation failed."
+    exit 1
+}
