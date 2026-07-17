@@ -147,6 +147,7 @@ if ! grep -q "Ubuntu 26.04" /etc/os-release; then
     exit 1
 fi
 
+
 # Initialize logs
 LOG_DIR="Dotfiles-Logs"
 init_logging
@@ -156,6 +157,19 @@ if [[ $EUID -eq 0 ]]; then
     echo "${ERROR}  This script should ${WARNING}NOT${RESET} be executed as root!! Exiting......." | tee -a "$LOG"
     printf "\n%.0s" {1..2}
     exit 1
+fi
+
+log_info "Checking write permissions in current directory..."
+
+# Try to create a temporary file to test write permissions
+if ! touch .write_test 2>/dev/null; then
+    log_error "No write permissions in current directory: $(pwd)"
+    log_error "Please run this script from a directory where you have write permissions."
+    log_error "Recommended: clone to ~/dotfiles or your home directory."
+    exit 1
+else
+    rm -f .write_test
+    log_success "Write permissions verified in: $(pwd)"
 fi
 
 log_info "Starting main installation at $(date)"
