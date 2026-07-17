@@ -54,6 +54,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Load logging system
 source "$SCRIPT_DIR/scripts/logging.sh"
 source "$SCRIPT_DIR/scripts/base_packages.sh"
+source "$SCRIPT_DIR/scripts/setup_git.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0
@@ -162,3 +163,6 @@ install_base_packages || {
     log_error "Base packages installation failed."
     exit 1
 }
+
+# Configure Git
+configure_git()
