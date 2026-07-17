@@ -85,6 +85,7 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $YELLOW "[DRY-RUN] Would perform the following operations:"
     echo ""
     print_color $GREEN "  ✓ Update system packages"
+    print_color $GREEN "  ✓ Configure Git"
     print_color $GREEN "  ✓ Install Node.js (via NVM)"
     print_color $GREEN "  ✓ Setup terminal environment (ZSH, Oh My Zsh, Jovial theme, Pokémon art)"
     print_color $GREEN "  ✓ Install development tools (Python, Java, Go, C/C++)"
@@ -128,6 +129,7 @@ case "$confirm" in
 [yY][eE][sS] | [yY])
     echo
     echo -e "${OK} Continuing with installation..."
+    read -t 0.1 discard 2>/dev/null || true
     ;;
 *)
     echo
@@ -165,4 +167,4 @@ install_base_packages || {
 }
 
 # Configure Git
-configure_git()
+configure_git
