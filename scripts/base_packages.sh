@@ -92,16 +92,17 @@ install_base_packages() {
         lsb-release
         python3
         python3-pip
+        cargo
     )
 
     log_info "Packages to install: ${base_packages[*]}"
 
-    local total_packages=${#packages[@]}
+    local total_packages=${#base_packages[@]}
     local installed_count=0
     local failed_count=0
     local failed_packages=()
 
-    for pkg in "${packages[@]}"; do
+    for pkg in "${base_packages[@]}"; do
         if dpkg -l | grep -q "^ii  $pkg"; then
             log_info "$pkg already installed"
             ((installed_count++))

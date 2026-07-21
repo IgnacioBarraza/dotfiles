@@ -55,6 +55,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/scripts/logging.sh"
 source "$SCRIPT_DIR/scripts/base_packages.sh"
 source "$SCRIPT_DIR/scripts/setup_git.sh"
+source "$SCRIPT_DIR/scripts/terminal_setup.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0
@@ -152,6 +153,8 @@ fi
 LOG_DIR="Dotfiles-Logs"
 init_logging
 
+log_info "Starting main installation at $(date)"
+
 # Check if running as root. If root, script will exit
 if [[ $EUID -eq 0 ]]; then
     echo "${ERROR}  This script should ${WARNING}NOT${RESET} be executed as root!! Exiting......." | tee -a "$LOG"
@@ -172,8 +175,6 @@ else
     log_success "Write permissions verified in: $(pwd)"
 fi
 
-log_info "Starting main installation at $(date)"
-    
 # Install base packages
 install_base_packages || {
     log_error "Base packages installation failed."
@@ -182,3 +183,18 @@ install_base_packages || {
 
 # Configure Git
 configure_git
+
+# Setup terminal
+setup_terminal
+
+
+log_info "Performing final system cleanup..."
+
+sudo apt clean 2>&1 | tee -a "$LOG"
+
+sudo apt autoremove -y 2>&1 | tee -a "$LOG"
+
+log_success "Cleanup completed"
+
+print_color $OK "✅ Installation completed successfully!"
+print_color $INFO "📄 Log file saved at: $LOG"
