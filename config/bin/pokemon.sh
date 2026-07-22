@@ -21,7 +21,7 @@ EXTRA_PADDING_W=0
 WIDTH=40
 
 # Gets a random sprite via pokeget from ALL available pokemon
-sprite=$(pokeget $RANDOM_POKEMON)
+sprite=$(pokeget $RANDOM_POKEMON --hide-name)
 
 # If the above fails, try getting random by region as fallback
 if [ $? -ne 0 ] || [ -z "$sprite" ]; then
