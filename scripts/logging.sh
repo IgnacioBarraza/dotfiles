@@ -46,9 +46,10 @@ log_warning() {
 # Initialize the logging system
 # Creates the log directory and a new log file with a timestamp
 init_logging() {
-    # Create log directory if it doesn't exist
+    # Create log directory if it doesn't exist and give permissions
     if [ ! -d "$LOG_DIR" ]; then
         mkdir -p "$LOG_DIR"
+        chmod 755 "$LOG_DIR"
     fi
     
     # Generate log filename with current date and time
