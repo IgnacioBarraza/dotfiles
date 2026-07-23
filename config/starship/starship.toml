@@ -1,0 +1,94 @@
+# ============================================================================
+# Module: Starship
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# This configuration provides a clean, two-line prompt inspired by Japanese
+# aesthetics while keeping the most relevant development information visible.
+#
+# Included modules:
+#   • Current project
+#   • Git branch & repository status
+#   • Node.js
+#   • Python
+#   • Docker
+#   • Package version
+#   • Sudo indicator
+#
+# Theme: Kanagawa
+# Shell: Zsh
+# ============================================================================
+
+format = """
+$custom$sudo\
+$line_break\
+$git_branch$git_status$nodejs$python$docker_context$package
+$character\
+"""
+
+add_newline = false
+
+palette = "torii"
+
+[palettes.torii]
+gold = "#D4AF37"
+green = "#70892E"
+pink = "#ff92c4"
+blue = "#7DCFFF"
+white = "#E8E8E8"
+red = "#E03E00"
+
+[custom.project]
+command = "basename \"$PWD\""
+when = "true"
+shell = ["sh"]
+symbol = "愛"
+format = "[$symbol](fg:red)[「 $output 」 ](fg:gold)"
+
+[git_branch]
+symbol = ""
+format = "[$symbol ](fg:white)[$branch](fg:pink)"
+
+[git_status]
+format = " $all_status$ahead_behind"
+
+conflicted = "[💢${count}](fg:red) "
+ahead      = "[⇡${count}](fg:blue) "
+behind     = "[⇣${count}](fg:yellow) "
+diverged   = "[⛕](fg:red) "
+
+up_to_date = "[✓](fg:green)"
+
+untracked  = "[?${count}](fg:blue) "
+stashed    = "[*${count}](fg:gold) "
+
+modified   = "[!${count}](fg:yellow) "
+staged     = "[+${count}](fg:green) "
+
+renamed    = "[»${count}](fg:blue) "
+deleted    = "[✘${count}](fg:red) "
+
+[nodejs]
+symbol = "⬢ "
+format = " • [$symbol$version](fg:green)"
+
+[python]
+symbol = "🐍 "
+format = " • [$symbol$version](fg:green)"
+
+[docker_context]
+symbol = "🐳 "
+format = " • [$symbol](fg:blue)"
+
+[package]
+disabled = false
+display_private = true 
+format = " • [📦 $version](fg:gold)"
+
+[character]
+success_symbol = "[↪](bold white)"
+error_symbol = "[✗](bold red)"
+
+[sudo]
+style = 'bold green'
+symbol = '🧙 '
+disabled = false
