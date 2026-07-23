@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Pokefetch - Random Pokémon System Info
-# Customized by [Your Name]
-# Based on original by discomanfulanito
+# Based on original by discomanfulanito [https://github.com/Discomanfulanito/pokefetch]
 # for everyone — as code should be
 
 # Use pokeget's random feature to get ANY available pokemon
