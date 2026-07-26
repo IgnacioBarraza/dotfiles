@@ -112,7 +112,9 @@ install_base_packages() {
         log_info "Installing $pkg..."
         sudo apt install -y "$pkg" 2>&1 | tee -a "$LOG"
         
-        if [ $? -eq 0 ]; then
+        local exit_code=${PIPESTATUS[0]}
+
+        if [ $exit_code -eq 0 ]; then
             log_success "$pkg installed successfully"
             ((installed_count++))
         else
@@ -131,9 +133,6 @@ install_base_packages() {
         log_warning "Some packages may need manual installation"
     fi
     
-    # Cleanup
-    cleanup_after_base_install
-    
     if [ $failed_count -eq 0 ]; then
         log_success "All base packages installed successfully"
         return 0
@@ -141,14 +140,4 @@ install_base_packages() {
         log_warning "Installation completed with errors"
         return 1
     fi
-}
-
-cleanup_after_base_install() {
-    log_info "Cleaning up package cache..."
-    sudo apt clean 2>&1 | tee -a "$LOG"
-    
-    log_info "Removing unnecessary packages..."
-    sudo apt autoremove -y 2>&1 | tee -a "$LOG"
-    
-    log_success "Cleanup completed"
 }
