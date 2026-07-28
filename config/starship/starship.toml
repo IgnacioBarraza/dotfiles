@@ -49,7 +49,7 @@ symbol = ""
 format = "[$symbol ](fg:white)[$branch](fg:pink)"
 
 [git_status]
-format = " $all_status$ahead_behind"
+format = " • $all_status$ahead_behind"
 
 conflicted = "[💢${count}](fg:red) "
 ahead      = "[⇡${count}](fg:blue) "
@@ -69,15 +69,15 @@ deleted    = "[✘${count}](fg:red) "
 
 [nodejs]
 symbol = "⬢ "
-format = " • [$symbol$version](fg:green)"
+format = "• [$symbol$version](fg:green)"
 
 [python]
 symbol = "🐍 "
-format = " • [$symbol$version](fg:green)"
+format = "• [$symbol$version](fg:green)"
 
 [docker_context]
 symbol = "🐳 "
-format = " • [$symbol](fg:blue)"
+format = "• [$symbol](fg:blue)"
 
 [package]
 disabled = false
