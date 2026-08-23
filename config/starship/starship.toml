@@ -2,93 +2,236 @@
 # Module: Starship
 # Project: Dotfiles
 # ----------------------------------------------------------------------------
-# This configuration provides a clean, two-line prompt inspired by Japanese
-# aesthetics while keeping the most relevant development information visible.
+# Two-line prompt with a Japanese-inspired layout.
 #
-# Included modules:
-#   • Current project
-#   • Git branch & repository status
-#   • Node.js
-#   • Python
-#   • Docker
-#   • Package version
-#   • Sudo indicator
+# Colors use ANSI names, not hex, so the prompt follows whichever Kitty theme
+# is active (sakura, kanagawa or yuki) instead of assuming a dark background.
+#
+# Icons are Nerd Font glyphs, which need FiraCode Nerd Font Mono.
+# Japanese text needs Noto Sans CJK.
+#
+# Modules only render when they apply, so the prompt stays short in a plain
+# directory and grows only where there is something to report.
 #
 # Theme: Sakura
 # Shell: Zsh
 # ============================================================================
 
 format = """
-$custom$sudo\
+$shlvl$container$hostname\
+$directory\
+$git_branch$git_status$git_state$git_commit\
+$conda$python$nodejs$bun$deno$rust$golang$java$maven$gradle$c$cpp\
+$docker_context$package\
+$cmd_duration$jobs$status$sudo\
 $line_break\
-$git_branch$git_status$nodejs$python$docker_context$package
 $character\
 """
 
+right_format = """$kubernetes$terraform$aws$gcloud$azure$battery$time"""
+
 add_newline = false
+command_timeout = 1000
+scan_timeout = 30
 
 palette = "torii"
 
+# ANSI names map to the terminal's color0-15, which every Kitty theme in
+# config/kitty/themes/ defines with at least 4.5:1 contrast.
 [palettes.torii]
-gold = "#D4AF37"
-green = "#70892E"
-pink = "#ff92c4"
-blue = "#7DCFFF"
-white = "#E8E8E8"
-red = "#E03E00"
+torii  = "yellow"        # 鳥居 gold
+sakura = "purple"        # 桜 pink
+sora   = "blue"          # 空 sky
+matcha = "green"         # 抹茶
+beni   = "red"           # 紅 crimson
+kami   = "white"         # 紙 paper
+sumi   = "bright-black"  # 墨 ink, dimmed text
 
-[custom.project]
-command = "basename \"$PWD\""
-when = "true"
-shell = ["sh"]
-symbol = "愛"
-format = "[$symbol](fg:red)[「 $output 」 ](fg:gold)"
+# ---- Where am I ----
+# These only appear when the answer is not "my own machine, one shell deep".
+[shlvl]
+disabled = false
+threshold = 3
+symbol = "󰆍 "
+format = "[$symbol$shlvl](fg:sumi)[・](fg:sumi)"
 
+[container]
+format = "[󰇧 $name](fg:torii)[・](fg:sumi)"
+
+[hostname]
+ssh_only = true
+format = "[󰌢 $hostname](fg:beni)[・](fg:sumi)"
+
+[directory]
+format = "[愛](fg:beni)[「 $path 」](fg:torii)[$read_only](fg:beni)"
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = ""
+home_symbol = "~"
+read_only = " 󰌾"
+
+# ---- Repository ----
 [git_branch]
-symbol = ""
-format = "[$symbol ](fg:white)[$branch](fg:pink)"
+symbol = " "
+format = "[・](fg:sumi)[$symbol](fg:kami)[$branch](fg:sakura)"
 
 [git_status]
-format = " • $all_status$ahead_behind"
+format = "$all_status$ahead_behind"
 
-conflicted = "[💢${count}](fg:red) "
-ahead      = "[⇡${count}](fg:blue) "
-behind     = "[⇣${count}](fg:yellow) "
-diverged   = "[⛕](fg:red) "
+conflicted = "[ ${count}](fg:beni)"
+ahead      = "[⇡${count}](fg:sora)"
+behind     = "[⇣${count}](fg:torii)"
+diverged   = "[󰫋](fg:beni)"
+up_to_date = "[ ✓](fg:matcha)"
 
-up_to_date = "[✓](fg:green)"
+untracked  = "[ ?${count}](fg:sora)"
+stashed    = "[ *${count}](fg:torii)"
+modified   = "[ !${count}](fg:torii)"
+staged     = "[ +${count}](fg:matcha)"
+renamed    = "[ »${count}](fg:sora)"
+deleted    = "[ ✘${count}](fg:beni)"
 
-untracked  = "[?${count}](fg:blue) "
-stashed    = "[*${count}](fg:gold) "
+[git_state]
+format = "[・](fg:sumi)[$state](fg:beni)[( $progress_current/$progress_total)](fg:sumi)"
+rebase       = "変更"
+merge        = "統合"
+revert       = "取消"
+cherry_pick  = "採用"
+bisect       = "二分"
+am           = "適用"
+am_or_rebase = "適用/変更"
 
-modified   = "[!${count}](fg:yellow) "
-staged     = "[+${count}](fg:green) "
+# Detached HEAD only, which is exactly when the branch name tells you nothing.
+[git_commit]
+only_detached = true
+tag_disabled = false
+format = "[・](fg:sumi)[󰜘 $hash$tag](fg:torii)"
 
-renamed    = "[»${count}](fg:blue) "
-deleted    = "[✘${count}](fg:red) "
-
-[nodejs]
-symbol = "⬢ "
-format = "• [$symbol$version](fg:green)"
+# ---- Languages and runtimes ----
+[conda]
+ignore_base = true
+symbol = "󱔎 "
+format = "[・](fg:sumi)[$symbol$environment](fg:matcha)"
 
 [python]
-symbol = "🐍 "
-format = "• [$symbol$version](fg:green)"
+symbol = "󰌠 "
+format = '[・](fg:sumi)[$symbol$pyenv_prefix$version](fg:matcha)( [\($virtualenv\)](fg:sumi))'
+
+[nodejs]
+symbol = "󰎙 "
+format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
+
+[bun]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:kami)"
+
+[deno]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
+
+[rust]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:beni)"
+
+[golang]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:sora)"
+
+[java]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:beni)"
+
+[maven]
+symbol = "󰎦 "
+format = "[・](fg:sumi)[$symbol$version](fg:beni)"
+
+[gradle]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
+
+[c]
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:sora)"
+
+[cpp]
+disabled = false
+symbol = " "
+format = "[・](fg:sumi)[$symbol$version](fg:sora)"
 
 [docker_context]
-symbol = "🐳 "
-format = "• [$symbol](fg:blue)"
+symbol = "󰡨 "
+format = "[・](fg:sumi)[$symbol$context](fg:sora)"
 
 [package]
 disabled = false
-display_private = true 
-format = " • [📦 $version](fg:gold)"
+display_private = true
+symbol = "󰏗 "
+format = "[・](fg:sumi)[$symbol$version](fg:torii)"
 
-[character]
-success_symbol = "[↪](bold white)"
-error_symbol = "[✗](bold red)"
+# ---- Last command ----
+[cmd_duration]
+min_time = 500
+format = "[・](fg:sumi)[󰔟 $duration](fg:torii)"
+
+[jobs]
+symbol = "󰜎 "
+format = "[・](fg:sumi)[$symbol$number](fg:sora)"
+
+[status]
+disabled = false
+symbol = " "
+format = "[・](fg:sumi)[$symbol$status](fg:beni)"
 
 [sudo]
-style = 'bold green'
-symbol = '🧙 '
 disabled = false
+symbol = "󰒃 "
+format = "[・](fg:sumi)[$symbol](fg:matcha)"
+
+[character]
+success_symbol = "[↪](bold fg:kami)"
+error_symbol = "[↪](bold fg:beni)"
+vicmd_symbol = "[❮](bold fg:torii)"
+
+# ---- Right side: what am I pointed at ----
+# Trailing separators, since $time is always last and always present.
+[kubernetes]
+disabled = false
+symbol = "󱃾 "
+format = '[$symbol$context](fg:sakura)( [\($namespace\)](fg:sumi))[・](fg:sumi)'
+
+[terraform]
+format = "[󱁢 $workspace](fg:sakura)[・](fg:sumi)"
+
+[aws]
+symbol = " "
+format = '[$symbol$profile](fg:torii)( [\($region\)](fg:sumi))[・](fg:sumi)'
+
+[gcloud]
+symbol = "󰅣 "
+format = "[$symbol$project](fg:sora)[・](fg:sumi)"
+
+[azure]
+disabled = false
+symbol = "󰠅 "
+format = "[$symbol$subscription](fg:sora)[・](fg:sumi)"
+
+[battery]
+full_symbol        = "󰁹 "
+charging_symbol    = "󰂄 "
+discharging_symbol = "󰂃 "
+unknown_symbol     = "󰁽 "
+empty_symbol       = "󰂎 "
+format = "[$symbol$percentage](fg:beni)[・](fg:sumi)"
+
+[[battery.display]]
+threshold = 20
+style = "fg:beni"
+
+[[battery.display]]
+threshold = 40
+style = "fg:torii"
+
+[time]
+disabled = false
+format = "[󰥔 $time](fg:sumi)"
+time_format = "%H:%M"
