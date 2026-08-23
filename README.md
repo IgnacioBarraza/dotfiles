@@ -145,10 +145,21 @@ All colors are checked to at least 4.5:1 contrast against their background.
 - This Installer requires a user with a priviledge to install packages
 - This is only 26.04 Resolute Raccoon and above.
 
+### Which entry point do I use?
+
+| Your situation                          | Use              | Command                                     |
+| :-------------------------------------- | :--------------- | :------------------------------------------ |
+| Fresh machine, repo not cloned yet      | `bootstrap.sh`   | [Auto install](#-auto-install)              |
+| You already cloned the repo             | `install.sh`     | [Manual install](#-manual-install)          |
+| You only want to re-apply the configs   | `install.sh`     | Re-run it and skip the steps you don't need |
+
+`bootstrap.sh` only clones the repository and then hands over to `install.sh`.
+Once you have a clone, you never need it again.
+
 ## ✨ Auto install
 
-- This clones the repository to `~/dotfiles` and runs the installer for you
-- NOTE: `curl` is required before running this command
+For a machine that does not have the repository yet. This clones it to
+`~/dotfiles` and runs the installer for you. Requires `curl`.
 
 ```bash
 sh <(curl -L https://raw.githubusercontent.com/IgnacioBarraza/dotfiles/main/bootstrap.sh)
@@ -162,20 +173,30 @@ curl -fsSL https://raw.githubusercontent.com/IgnacioBarraza/dotfiles/main/bootst
 
 Set `DOTFILES_DIR` to clone somewhere other than `~/dotfiles`.
 
+If `~/dotfiles` already exists, the bootstrap updates it with `git pull` instead
+of cloning again, so it is safe to re-run.
+
 > [!IMPORTANT]
-> Do **not** pipe `install.sh` itself. It resolves its own directory to load
-> `scripts/*.sh`, which does not exist when the script has no path on disk.
-> That is what `bootstrap.sh` is for.
+> Point the URL at `bootstrap.sh`, never at `install.sh`. `install.sh` resolves
+> its own directory on disk to load `scripts/*.sh`, and a piped script has no
+> path on disk, so it would look for them in the wrong place.
 
 ## ✨ Manual install
 
-> clone this repo (latest commit only) by using git. Change directory, make executable and run the script
+For when you want the repository around to inspect or edit before installing.
+Clone it (latest commit only), change directory, make it executable and run it.
 
 ```bash
 git clone --depth=1 https://github.com/IgnacioBarraza/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 chmod +x install.sh
 ./install.sh
+```
+
+Preview the steps without changing anything:
+
+```bash
+./install.sh --dry-run
 ```
 
 #### ✨ for ZSH and OH-MY-ZSH installation
