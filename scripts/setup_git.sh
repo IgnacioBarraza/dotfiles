@@ -28,7 +28,7 @@ check_for_git() {
 configure_git() {
     log_info "Starting Git configuration..."
 
-    check_for_git()
+    check_for_git
 
     # Check if user already has a global config
     if git config --global --get user.name &> /dev/null; then
