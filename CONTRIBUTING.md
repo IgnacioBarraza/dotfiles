@@ -102,6 +102,7 @@ Please keep the repository organized.
 - `scripts/` → Installation and automation scripts, sourced by `install.sh`
 - `scripts/utils.sh` → Shared helpers, use these instead of re-implementing them
 - `scripts/validate.sh` → Static checks, also run by CI
+- `scripts/check_glyphs.py` → Verifies no glyph was lost and every one has a font
 - `config/` → Configuration files, mirrored into `~/.config`
 - `config/kitty/themes/` and `config/alacritty/themes/` → Color themes
 - `config/bin/` → Scripts installed into `~/.local/bin`

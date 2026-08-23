@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Re-exec under bash when started as `sh install.sh`. This script uses arrays,
+# BASH_SOURCE and `source`, none of which dash has. Without this it would print
+# a handful of errors and then carry on into the installer with no functions
+# loaded at all, which is far worse than failing outright.
+# Keep this block POSIX sh: dash has to be able to parse it.
+if [ -z "${BASH_VERSION:-}" ]; then
+    if command -v bash > /dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+    echo "This installer requires bash, which was not found." >&2
+    echo "Install it with: sudo apt install bash" >&2
+    exit 1
+fi
+
 # The color variables below are consumed by the sourced scripts in scripts/,
 # so shellcheck cannot see all of their uses from this file.
 # shellcheck disable=SC2034

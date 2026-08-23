@@ -256,6 +256,9 @@ of cloning again, so it is safe to re-run.
 > Point the URL at `bootstrap.sh`, never at `install.sh`. `install.sh` resolves
 > its own directory on disk to load `scripts/*.sh`, and a piped script has no
 > path on disk, so it would look for them in the wrong place.
+>
+> Running `sh install.sh` on a **cloned** copy is fine: the script re-execs
+> itself under bash. It is only the piped form that cannot work.
 
 ## ✨ Manual install
 

@@ -79,8 +79,8 @@ format = "[・](fg:sumi)[$symbol](fg:kami)[$branch](fg:sakura)"
 format = "$all_status$ahead_behind"
 
 conflicted = "[ ${count}](fg:beni)"
-ahead      = "[⇡${count}](fg:sora)"
-behind     = "[⇣${count}](fg:torii)"
+ahead      = "[↑${count}](fg:sora)"
+behind     = "[↓${count}](fg:torii)"
 diverged   = "[󰫋](fg:beni)"
 up_to_date = "[ ✓](fg:matcha)"
 
@@ -89,7 +89,7 @@ stashed    = "[ *${count}](fg:torii)"
 modified   = "[ !${count}](fg:torii)"
 staged     = "[ +${count}](fg:matcha)"
 renamed    = "[ »${count}](fg:sora)"
-deleted    = "[ ✘${count}](fg:beni)"
+deleted    = "[ ×${count}](fg:beni)"
 
 [git_state]
 format = "[・](fg:sumi)[$state](fg:beni)[( $progress_current/$progress_total)](fg:sumi)"

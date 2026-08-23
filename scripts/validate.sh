@@ -31,9 +31,13 @@ head_() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 head_ "Shell syntax"
 for f in install.sh scripts/*.sh config/bin/*.sh; do
-    [ "$f" = "scripts/validate.sh" ] && continue
     if bash -n "$f" 2>/dev/null; then pass "$f"; else fail "$f"; fi
 done
+if python3 -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" scripts/check_glyphs.py 2>/dev/null; then
+    pass "scripts/check_glyphs.py"
+else
+    fail "scripts/check_glyphs.py"
+fi
 if sh -n bootstrap.sh 2>/dev/null; then pass "bootstrap.sh (POSIX sh)"; else fail "bootstrap.sh"; fi
 
 head_ "ShellCheck"
@@ -47,6 +51,33 @@ if command -v shellcheck &> /dev/null; then
 else
     skip "shellcheck not installed"
 fi
+
+head_ "Entry points"
+# install.sh must survive being started with sh, not just bash: it re-execs
+# itself. Without that it printed a few errors and carried on into the
+# installer with none of its functions loaded.
+for shell in bash sh; do
+    if out="$("$shell" install.sh --help 2>&1)" \
+       && ! printf '%s' "$out" | grep -q "Bad substitution\|not found"; then
+        pass "$shell install.sh --help"
+    else
+        fail "$shell install.sh --help"
+    fi
+done
+
+if bash install.sh --dry-run > /dev/null 2>&1; then
+    pass "install.sh --dry-run"
+else
+    fail "install.sh --dry-run"
+fi
+
+for shell in bash sh; do
+    if "$shell" -n bootstrap.sh 2>/dev/null; then
+        pass "bootstrap.sh parses under $shell"
+    else
+        fail "bootstrap.sh under $shell"
+    fi
+done
 
 head_ "Config files parse"
 python3 - <<'PY' && pass "TOML and JSONC" || fail "TOML or JSONC"
@@ -87,6 +118,13 @@ if command -v alacritty &> /dev/null; then
     fi
 else
     skip "alacritty not installed"
+fi
+
+head_ "Glyphs"
+if python3 "$REPO_DIR/scripts/check_glyphs.py" "$REPO_DIR"; then
+    pass "every symbol has a glyph, every glyph has a font"
+else
+    fail "see findings above"
 fi
 
 head_ "Theme symlinks"
