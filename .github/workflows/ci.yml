@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate scripts and configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck kitty alacritty
+
+      - name: Run validation suite
+        run: ./scripts/validate.sh
+
+  install-dry-run:
+    name: Installer entry points
+    # Pinned on purpose: the version guard below is only meaningful on a
+    # release that is NOT 26.04. If ubuntu-latest ever becomes 26.04, the
+    # installer would start installing packages on the runner.
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install.sh --help
+        run: ./install.sh --help
+
+      - name: install.sh --dry-run
+        run: ./install.sh --dry-run
+
+      - name: Refuse to run outside Ubuntu 26.04
+        run: |
+          # The installer must exit rather than run on an unsupported release.
+          # The runner is not 26.04, so a zero exit code here means the guard
+          # is broken.
+          if echo "y" | timeout 120 ./install.sh > /dev/null 2>&1; then
+            echo "install.sh did not refuse to run on $(lsb_release -ds)"
+            exit 1
+          fi
+          echo "Guard works: installer refused to run on $(lsb_release -ds)"

@@ -1,0 +1,63 @@
+# ============================================================================
+# Theme: Yuki 雪
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Tema claro. Fondo papel washi con tintas tradicionales japonesas.
+# Generated from config/kitty/themes/yuki.conf so both terminals stay in sync.
+# ============================================================================
+
+[colors.primary]
+background = "#FAF8F5"
+foreground = "#2A2A37"
+
+[colors.cursor]
+text   = "#FAF8F5"
+cursor = "#2B6CB0"
+
+[colors.vi_mode_cursor]
+text   = "#FAF8F5"
+cursor = "#996900"
+
+[colors.selection]
+text       = "#2A2A37"
+background = "#DCE4EC"
+
+[colors.search.matches]
+foreground = "#FAF8F5"
+background = "#996900"
+
+[colors.search.focused_match]
+foreground = "#FAF8F5"
+background = "#8B4A9C"
+
+[colors.footer_bar]
+foreground = "#FAF8F5"
+background = "#996900"
+
+[colors.hints.start]
+foreground = "#FAF8F5"
+background = "#996900"
+
+[colors.hints.end]
+foreground = "#FAF8F5"
+background = "#6D7184"
+
+[colors.normal]
+black    = "#2A2A37"
+red      = "#B4363C"
+green    = "#4C7A34"
+yellow   = "#996900"
+blue     = "#2B6CB0"
+magenta  = "#8B4A9C"
+cyan     = "#1E7A70"
+white    = "#5C5F72"
+
+[colors.bright]
+black    = "#6D7184"
+red      = "#9A2E33"
+green    = "#3B5E28"
+yellow   = "#724E00"
+blue     = "#23578E"
+magenta  = "#763F85"
+cyan     = "#175F58"
+white    = "#2A2A37"

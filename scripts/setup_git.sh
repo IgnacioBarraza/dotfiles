@@ -176,12 +176,12 @@ generate_ssh_key() {
     
     if ssh-keygen -t ed25519 -C "$ssh_email" -f ~/.ssh/id_ed25519 -N "" 2>&1 | tee -a "$LOG"; then
         log_success "SSH key generated: ~/.ssh/id_ed25519"
-        local ssh_key_path="~/.ssh/id_ed25519.pub"
+        local ssh_key_path="$HOME/.ssh/id_ed25519.pub"
     else
         log_warning "ed25519 failed, falling back to RSA (4096-bit)"
         ssh-keygen -t rsa -b 4096 -C "$ssh_email" -f ~/.ssh/id_rsa -N "" 2>&1 | tee -a "$LOG"
         log_success "SSH key generated: ~/.ssh/id_rsa"
-        local ssh_key_path="~/.ssh/id_rsa.pub"
+        local ssh_key_path="$HOME/.ssh/id_rsa.pub"
     fi
     
     chmod 600 ~/.ssh/id_* 2>/dev/null
@@ -189,7 +189,7 @@ generate_ssh_key() {
     
     log_info "Your SSH public key is:"
     echo ""
-    cat "${ssh_key_path/#\~/$HOME}" 2>/dev/null || cat ~/.ssh/id_*.pub 2>/dev/null
+    cat "$ssh_key_path" 2>/dev/null || cat "$HOME"/.ssh/id_*.pub 2>/dev/null
     echo ""
     
     log_info "Add this key to your GitHub/GitLab account:"
@@ -200,8 +200,8 @@ generate_ssh_key() {
         read -rp "Do you want to copy the SSH key to clipboard? [y/N]: " copy_key
         case "$copy_key" in
             [yY][eE][sS] | [yY])
-                cat "${ssh_key_path/#\~/$HOME}" | xclip -selection clipboard 2>/dev/null || \
-                cat "${ssh_key_path/#\~/$HOME}" | xclip -i 2>/dev/null
+                xclip -selection clipboard < "$ssh_key_path" 2>/dev/null || \
+                xclip -i < "$ssh_key_path" 2>/dev/null
                 log_success "SSH key copied to clipboard!"
                 ;;
             *)

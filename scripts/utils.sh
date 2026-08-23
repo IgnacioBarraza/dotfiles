@@ -68,8 +68,9 @@ zshrc_ensure_line() {
     return 0
 }
 
-# Merges into the existing plugins=() list. Overwriting it wholesale would
-# silently drop any plugin the user had already configured.
+# Merges into the existing plugins=() list, in either the single-line form
+# `plugins=(a b c)` or the multi-line form with one plugin per line.
+# Overwriting the list wholesale would silently drop plugins the user had.
 zshrc_add_plugins() {
     local zshrc="$HOME/.zshrc"
     local wanted=("$@")
@@ -85,14 +86,18 @@ zshrc_add_plugins() {
         return 0
     fi
 
-    # Only the single-line form can be rewritten safely with sed.
-    if ! grep -q "^plugins=(.*)" "$zshrc"; then
-        log_warning "plugins=() spans multiple lines in .zshrc; add these by hand: ${wanted[*]}"
-        return 1
-    fi
-
+    local multiline=0
     local current
-    current="$(sed -n 's/^plugins=(\(.*\)).*/\1/p' "$zshrc" | head -1)"
+
+    if grep -q "^plugins=(.*)" "$zshrc"; then
+        current="$(sed -n 's/^plugins=(\(.*\)).*/\1/p' "$zshrc" | head -1)"
+    else
+        multiline=1
+        # Everything between the opening plugins=( and its closing paren,
+        # minus comments and indentation.
+        current="$(awk '/^plugins=\(/{f=1;next} f&&/^[[:space:]]*\)/{f=0} f' "$zshrc" \
+                   | sed 's/#.*//' | tr -s '[:space:]' ' ')"
+    fi
 
     local existing=()
     read -ra existing <<< "$current"
@@ -120,6 +125,26 @@ zshrc_add_plugins() {
         return 0
     fi
 
-    sed -i "s/^plugins=(.*)/plugins=(${merged[*]})/" "$zshrc"
+    backup_file "$zshrc"
+
+    if [ "$multiline" -eq 1 ]; then
+        # Append before the closing paren, not after the opening one:
+        # zsh-syntax-highlighting only works if it is sourced last.
+        local close
+        close="$(awk '/^plugins=\(/{f=1} f&&/^[[:space:]]*\)/{print NR; exit}' "$zshrc")"
+
+        if [ -z "$close" ]; then
+            log_warning "Could not find the end of plugins=() in .zshrc; add by hand: ${added[*]}"
+            return 1
+        fi
+
+        local i
+        for (( i=${#added[@]}-1; i>=0; i-- )); do
+            sed -i "${close}i\\  ${added[i]}" "$zshrc"
+        done
+    else
+        sed -i "s/^plugins=(.*)/plugins=(${merged[*]})/" "$zshrc"
+    fi
+
     log_success "Plugins added to .zshrc: ${added[*]}"
 }

@@ -1,0 +1,18 @@
+# ============================================================================
+# Module: Alacritty
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Archivo principal. Solo importa modulos.
+#
+# Cambiar de tema:
+#   ln -sfn themes/<nombre>.toml ~/.config/alacritty/theme.toml
+# ============================================================================
+
+[general]
+import = [
+  "fonts.toml",
+  "window.toml",
+  "keys.toml",
+  "theme.toml",
+]
+live_config_reload = true

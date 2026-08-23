@@ -129,7 +129,9 @@ Whenever possible:
   re-implementing them.
 - Back up any user file before overwriting it.
 - Check exit codes with `run_logged`, never with `$?` after a pipe to `tee`.
-- Run `bash -n` on every script you touch.
+- Run `./scripts/validate.sh` before opening a Pull Request. It runs the same
+  checks as CI: shell syntax, ShellCheck, config parsing, theme symlinks,
+  palette sync between Kitty and Alacritty, and the 4.5:1 contrast rule.
 
 ---
 

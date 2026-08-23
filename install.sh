@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# The color variables below are consumed by the sourced scripts in scripts/,
+# so shellcheck cannot see all of their uses from this file.
+# shellcheck disable=SC2034
+
 # █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 # █ Nach0_0 Dotfiles (2026)                             █
 # █ project_url: https://github.com/IgnacioBarraza      █
@@ -91,9 +95,11 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Configure Git (user, defaults, optional SSH key)"
     print_color $GREEN "  ✓ Install a terminal emulator (Kitty or Alacritty)"
     print_color $GREEN "  ✓ Install fonts (FiraCode Nerd Font, Noto Sans CJK)"
-    print_color $GREEN "  ✓ Install the Kitty configuration and themes"
+    print_color $GREEN "  ✓ Install the Kitty and Alacritty configurations and themes"
     print_color $GREEN "  ✓ Install ZSH and Oh My Zsh, set it as the default shell"
     print_color $GREEN "  ✓ Install Starship, ZSH plugins and CLI utilities (eza, bat, ripgrep, fd, jq...)"
+    print_color $GREEN "  ✓ Add shell aliases for the installed CLI tools"
+    print_color $GREEN "  ✓ Install fastfetch and its configuration"
     print_color $GREEN "  ✓ Install Pokémon ASCII art on terminal startup (fastfetch + pokeget)"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
@@ -111,7 +117,7 @@ print_color $WARNING "
     - These scripts will install and configure:
         - Base build tooling (build-essential, curl, git, python3, cargo)
         - Git (user, sane defaults, optional SSH key)
-        - A terminal emulator (Kitty or Alacritty) with themes
+        - A terminal emulator (Kitty or Alacritty) with matching themes
         - Fonts (FiraCode Nerd Font, Noto Sans CJK)
         - ZSH + Oh My Zsh + Starship + plugins
         - CLI utilities (eza, bat, ripgrep, fd, jq, fzf, btop...)
@@ -128,7 +134,7 @@ case "$confirm" in
 [yY][eE][sS] | [yY])
     echo
     echo -e "${OK} Continuing with installation..."
-    read -t 0.1 discard 2>/dev/null || true
+    read -r -t 0.1 -N 10000 2>/dev/null || true
     ;;
 *)
     echo

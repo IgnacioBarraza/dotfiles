@@ -1,0 +1,30 @@
+# ============================================================================
+# Module: Alacritty / Fonts
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Requiere FiraCode Nerd Font y Noto Sans CJK.
+#
+# Alacritty no tiene equivalente a symbol_map de kitty: el japones se resuelve
+# por fallback de fontconfig, que en Ubuntu da Noto Sans CJK.
+# ============================================================================
+
+[font]
+size = 11.0
+builtin_box_drawing = true
+
+[font.normal]
+family = "FiraCode Nerd Font Mono"
+style  = "Regular"
+
+[font.bold]
+family = "FiraCode Nerd Font Mono"
+style  = "SemiBold"
+
+# Fira Code no tiene italica; Alacritty la sintetiza.
+[font.italic]
+family = "FiraCode Nerd Font Mono"
+style  = "Regular"
+
+[font.bold_italic]
+family = "FiraCode Nerd Font Mono"
+style  = "SemiBold"

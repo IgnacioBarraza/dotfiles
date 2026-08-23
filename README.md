@@ -11,6 +11,14 @@
 <!-- Badges -->
 <div align="center">
   <p style="width: 80%">
+    <!-- CI -->
+    <a href="https://github.com/IgnacioBarraza/dotfiles/actions/workflows/ci.yml">
+      <img
+        src="https://img.shields.io/github/actions/workflow/status/IgnacioBarraza/dotfiles/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI"
+        alt="CI status"
+        height="22"
+      >
+    </a>
     <!-- CODE SIZE -->
     <img
       src="https://img.shields.io/github/languages/code-size/IgnacioBarraza/dotfiles?style=for-the-badge&logo=github&color=%2377aaff"
@@ -80,14 +88,19 @@
 > [!CAUTION]
 > Download this script on a directory where you have write permissions. ie. HOME. Or any directory within your home directory. Else script will fail
 
+## 🖼️ Preview
+
+![Sakura theme](assets/images/preview-sakura.png)
+
 ## 📖 Overview
 
 This repository contains my personal dotfiles and an **automated setup script** for Ubuntu 26.04 LTS. It turns a fresh installation into an opinionated, terminal-first development environment.
 
 The setup includes:
 
-- A **modern terminal** with Kitty, ZSH, Oh My Zsh and Starship
-- **Three Japanese-inspired themes** for Kitty, switchable with a symlink
+- A **modern terminal** with Kitty or Alacritty, ZSH, Oh My Zsh and Starship
+- **Three Japanese-inspired themes**, shared by both terminals and the prompt,
+  switchable with a symlink
 - **Fonts** (FiraCode Nerd Font, Noto Sans CJK) so icons and kanji actually render
 - **CLI utilities** (eza, bat, ripgrep, fd, jq, fzf, btop, zoxide)
 - **Pokémon ASCII art** on terminal startup, via fastfetch and pokeget
@@ -109,33 +122,53 @@ Before you begin, ensure your system meets the following requirements:
 
 Your new development environment will include:
 
-| Category                | Tools                                                                           |
-| :---------------------- | :------------------------------------------------------------------------------ |
-| **🖥️ Terminal**         | Kitty (or Alacritty), modular config, 3 switchable themes                       |
-| **🐚 Shell**            | ZSH, Oh My Zsh, Starship prompt                                                 |
-| **🔌 ZSH Plugins**      | zsh-autosuggestions, zsh-syntax-highlighting, zsh-history-enquirer              |
-| **🔤 Fonts**            | FiraCode Nerd Font, Noto Sans CJK                                               |
-| **🛠️ CLI Utilities**    | eza, bat, ripgrep, fd, jq, fzf, htop, btop, tree, zoxide                        |
-| **🧱 Base Toolchain**   | build-essential, curl, wget, git, python3, python3-pip, cargo                   |
-| **🎨 Customization**    | fastfetch with a Japanese layout, Pokémon ASCII art on startup                  |
-| **🔧 Git**              | user config, sane defaults, optional SSH key generation                         |
+| Category              | Tools                                                                  |
+| :-------------------- | :--------------------------------------------------------------------- |
+| **🖥️ Terminal**       | Kitty and Alacritty, modular configs, 3 switchable themes each         |
+| **🐚 Shell**          | ZSH, Oh My Zsh, Starship prompt                                        |
+| **🔌 ZSH Plugins**    | zsh-autosuggestions, zsh-syntax-highlighting, zsh-history-enquirer     |
+| **🔤 Fonts**          | FiraCode Nerd Font, Noto Sans CJK                                      |
+| **🛠️ CLI Utilities**  | eza, bat, ripgrep, fd, jq, fzf, htop, btop, tree, zoxide               |
+| **🧱 Base Toolchain** | build-essential, curl, wget, git, python3, python3-pip, cargo          |
+| **🎨 Customization**  | fastfetch with a Japanese layout, Pokémon ASCII art on startup         |
+| **🔧 Git**            | user config, sane defaults, optional SSH key generation                |
+| **⌨️ Aliases**        | `ls`/`ll`/`la`/`lt` via eza, plus `bat` and `fd` (Ubuntu renames both) |
 
-### 🎨 Kitty themes
+### 🎨 Themes
 
-The Kitty config is modular. `theme.conf` is a symlink into `themes/`, so switching is one command:
+Both terminal configs are modular: `theme.conf` (Kitty) and `theme.toml` (Alacritty)
+are symlinks into their `themes/` directory, so switching is one command.
 
 ```bash
+# Kitty, then reload with ctrl+shift+f5
 ln -sfn themes/kanagawa.conf ~/.config/kitty/theme.conf
-# then reload with ctrl+shift+f5
+
+# Alacritty reloads on its own
+ln -sfn themes/kanagawa.toml ~/.config/alacritty/theme.toml
 ```
 
-| Theme        | Style | Description                                          |
-| :----------- | :---- | :--------------------------------------------------- |
-| `sakura`     | Dark  | Default. Torii gold and sakura pink over night indigo |
-| `kanagawa`   | Dark  | Muted earth tones, the warm counterpart               |
-| `yuki`       | Light | Washi paper with traditional Japanese inks            |
+The Starship prompt uses ANSI color names rather than fixed hex values, so it
+picks up whichever theme is active instead of assuming a dark background.
+Every color is checked to at least 4.5:1 contrast against its background, and
+the palettes are kept identical between both terminals by CI.
 
-All colors are checked to at least 4.5:1 contrast against their background.
+#### `sakura` 桜 — dark, default
+
+Torii gold and sakura pink over night indigo.
+
+![Sakura theme](assets/images/preview-sakura.png)
+
+#### `kanagawa` 神奈川 — dark
+
+Muted earth tones, the warm counterpart to Sakura.
+
+![Kanagawa theme](assets/images/preview-kanagawa.png)
+
+#### `yuki` 雪 — light
+
+Washi paper with traditional Japanese inks, for working in daylight.
+
+![Yuki theme](assets/images/preview-yuki.png)
 
 ## 🚀 Quick Start
 
@@ -147,11 +180,11 @@ All colors are checked to at least 4.5:1 contrast against their background.
 
 ### Which entry point do I use?
 
-| Your situation                          | Use              | Command                                     |
-| :-------------------------------------- | :--------------- | :------------------------------------------ |
-| Fresh machine, repo not cloned yet      | `bootstrap.sh`   | [Auto install](#-auto-install)              |
-| You already cloned the repo             | `install.sh`     | [Manual install](#-manual-install)          |
-| You only want to re-apply the configs   | `install.sh`     | Re-run it and skip the steps you don't need |
+| Your situation                        | Use            | Command                                     |
+| :------------------------------------ | :------------- | :------------------------------------------ |
+| Fresh machine, repo not cloned yet    | `bootstrap.sh` | [Auto install](#-auto-install)              |
+| You already cloned the repo           | `install.sh`   | [Manual install](#-manual-install)          |
+| You only want to re-apply the configs | `install.sh`   | Re-run it and skip the steps you don't need |
 
 `bootstrap.sh` only clones the repository and then hands over to `install.sh`.
 Once you have a clone, you never need it again.
@@ -225,11 +258,14 @@ After running the installer, verify your environment with these steps:
 echo $SHELL          # Should show /usr/bin/zsh
 
 # Verify installed tools
-kitty --version      # Terminal
+kitty --version      # Terminal (or: alacritty --version)
 starship --version   # Prompt
 fastfetch --version  # System info
 pokeget --version    # Pokémon sprites
 eza --version        # ls replacement
+
+# Verify the theme symlink resolves
+ls -l ~/.config/kitty/theme.conf
 
 # Verify fonts (both must return a match)
 fc-list -f '%{family[0]}\n' | grep -x "FiraCode Nerd Font Mono"
@@ -406,16 +442,15 @@ cat ~/.ssh/id_ed25519.pub  # Add this to GitHub/GitLab
 
 Planned, not implemented yet. The installer does **not** touch any of these:
 
-| Area                | Planned                                            |
-| :------------------ | :------------------------------------------------- |
-| **JavaScript**      | NVM, Node.js LTS, pnpm, yarn                       |
-| **Python**          | pipx, ipython, black, flake8, mypy                 |
-| **Java**            | OpenJDK 21, Maven, Gradle                          |
-| **Go**              | Latest stable                                      |
-| **Containers**      | Docker CE, Docker Compose                          |
-| **Databases**       | PostgreSQL client, Redis, MongoDB Shell, SQLite    |
-| **Desktop**         | KDE customizations (Kvantum, kio-gdrive)           |
-| **Terminal**        | Alacritty configuration (currently install only)   |
+| Area           | Planned                                         |
+| :------------- | :---------------------------------------------- |
+| **JavaScript** | NVM, Node.js LTS, pnpm, yarn                    |
+| **Python**     | pipx, ipython, black, flake8, mypy              |
+| **Java**       | OpenJDK 21, Maven, Gradle                       |
+| **Go**         | Latest stable                                   |
+| **Containers** | Docker CE, Docker Compose                       |
+| **Databases**  | PostgreSQL client, Redis, MongoDB Shell, SQLite |
+| **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
 
 ## 🤝 Contributing
 
@@ -452,4 +487,3 @@ Made with 💻 and ☕ by Nach0_0
 ⭐ Star this repo if you found it useful!
 
 </div>
-```

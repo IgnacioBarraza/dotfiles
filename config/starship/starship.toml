@@ -72,7 +72,7 @@ read_only = " 󰌾"
 
 # ---- Repository ----
 [git_branch]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol](fg:kami)[$branch](fg:sakura)"
 
 [git_status]
@@ -122,23 +122,23 @@ symbol = "󰎙 "
 format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
 
 [bun]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:kami)"
 
 [deno]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
 
 [rust]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:beni)"
 
 [golang]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:sora)"
 
 [java]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:beni)"
 
 [maven]
@@ -146,16 +146,16 @@ symbol = "󰎦 "
 format = "[・](fg:sumi)[$symbol$version](fg:beni)"
 
 [gradle]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:matcha)"
 
 [c]
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:sora)"
 
 [cpp]
 disabled = false
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$version](fg:sora)"
 
 [docker_context]
@@ -179,7 +179,7 @@ format = "[・](fg:sumi)[$symbol$number](fg:sora)"
 
 [status]
 disabled = false
-symbol = " "
+symbol = " "
 format = "[・](fg:sumi)[$symbol$status](fg:beni)"
 
 [sudo]
@@ -203,7 +203,7 @@ format = '[$symbol$context](fg:sakura)( [\($namespace\)](fg:sumi))[・](fg:sumi)
 format = "[󱁢 $workspace](fg:sakura)[・](fg:sumi)"
 
 [aws]
-symbol = " "
+symbol = " "
 format = '[$symbol$profile](fg:torii)( [\($region\)](fg:sumi))[・](fg:sumi)'
 
 [gcloud]

@@ -12,10 +12,14 @@
 #   - install_terminal: Prompt for and install a terminal emulator
 #   - install_selected_terminal: Install the chosen emulator
 #   - install_fonts: Install FiraCode Nerd Font and Noto Sans CJK
+#   - install_terminal_config: Copy a terminal's modular config into ~/.config
 #   - configure_kitty: Install the kitty config from config/kitty/
+#   - configure_alacritty: Install the alacritty config from config/alacritty/
 #   - install_zsh: Install ZSH and Oh My Zsh
 #   - configure_shell: Install Starship and ZSH plugins
 #   - install_cli_tools: Install additional CLI utilities
+#   - configure_aliases: Add aliases for the installed CLI tools
+#   - install_fastfetch: Install fastfetch and its configuration
 #   - install_pokemon_art: Install Pokémon ASCII art
 #   - configure_fastfetch: Install the fastfetch config from config/fastfetch/
 #
@@ -34,9 +38,13 @@ setup_terminal() {
 
     configure_kitty
 
+    configure_alacritty
+
     install_zsh
 
     configure_shell
+
+    install_fastfetch
 
     install_pokemon_art
 
@@ -167,7 +175,11 @@ configure_shell() {
             log_info "Reverted ZSH_THEME to robbyrussell (Starship draws the prompt)"
         fi
 
-        zshrc_add_plugins git zsh-autosuggestions zsh-syntax-highlighting zsh-history-enquirer
+        # zsh-syntax-highlighting goes last on purpose: it only works when it
+        # is the last plugin sourced.
+        zshrc_add_plugins git zoxide zsh-autosuggestions zsh-history-enquirer zsh-syntax-highlighting
+
+        configure_aliases
 
         log_success "Shell configuration with Starship and plugins completed"
         ;;
@@ -281,21 +293,10 @@ install_pokemon_art() {
 
     case "$choice" in
     [yY][eE][sS] | [yY])
-        log_info "Installing dependencies..."
-
-        log_info "Installing fastfetch..."
-        if pkg_installed fastfetch; then
-            log_success "Fastfetch is already installed"
-        else
-            log_info "Installing Fastfetch..."
-            if run_logged sudo apt install -y fastfetch; then
-                log_success "Fastfetch installed successfully"
-            else
-                log_error "Failed to install fastfetch"
-            fi
+        if ! command -v fastfetch &> /dev/null; then
+            log_error "fastfetch is required for the Pokémon art but is not installed"
+            return 1
         fi
-
-        configure_fastfetch
 
         log_info "Check if cargo is already installed"
 
@@ -352,50 +353,62 @@ install_pokemon_art() {
     esac
 }
 
-configure_kitty() {
-    log_info "Configuring kitty terminal..."
+# Kitty and Alacritty share the same layout: a main file that imports modules,
+# a themes/ directory, and a theme symlink pointing into it.
+install_terminal_config() {
+    local name="$1"
+    local ext="$2"
+    local src="$SCRIPT_DIR/../config/$name"
+    local dest="$HOME/.config/$name"
 
-    if ! command -v kitty &> /dev/null; then
-        log_warning "Kitty is not installed, skipping kitty configuration"
+    if ! command -v "$name" &> /dev/null; then
+        log_warning "$name is not installed, skipping its configuration"
         return 0
     fi
 
-    local src="$SCRIPT_DIR/../config/kitty"
-    local dest="$HOME/.config/kitty"
+    log_info "Configuring $name..."
 
     if [ ! -d "$src" ]; then
-        log_warning "Kitty config not found at config/kitty/. Using default."
+        log_warning "$name config not found at config/$name/. Using default."
         return 0
     fi
 
-    # The config is modular: a partial copy leaves broken includes.
+    # The config is modular: a partial copy leaves broken imports.
     if [ -d "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null)" ]; then
         local backup="${dest}.bak.$(date +%Y%m%d-%H%M%S)"
         if cp -r "$dest" "$backup"; then
-            log_info "Existing kitty config backed up to $backup"
+            log_info "Existing $name config backed up to $backup"
         else
-            log_error "Could not back up existing kitty config. Aborting to avoid data loss."
+            log_error "Could not back up existing $name config. Aborting to avoid data loss."
             return 1
         fi
     fi
 
     mkdir -p "$dest"
 
-    # cp -r (not cp -L) keeps theme.conf as a symlink, so themes stay switchable.
+    # cp -r (not cp -L) keeps the theme symlink, so themes stay switchable.
     if cp -r "$src/." "$dest/"; then
-        log_success "Kitty configuration installed to $dest"
+        log_success "$name configuration installed to $dest"
     else
-        log_error "Failed to copy kitty configuration"
+        log_error "Failed to copy $name configuration"
         return 1
     fi
 
     local active
-    active="$(basename "$(readlink "$dest/theme.conf" 2>/dev/null || echo "theme.conf")" .conf)"
-    log_info "Active kitty theme: $active"
-    log_info "Available themes: $(cd "$src/themes" && ls -1 *.conf 2>/dev/null | sed 's/\.conf$//' | tr '\n' ' ')"
-    log_info "Switch with: ln -sfn themes/<name>.conf $dest/theme.conf  (then ctrl+shift+f5)"
+    active="$(basename "$(readlink "$dest/theme.$ext" 2>/dev/null || echo "theme.$ext")" ".$ext")"
+    log_info "Active $name theme: $active"
+    log_info "Available themes: $(cd "$src/themes" && ls -1 ./*."$ext" 2>/dev/null | sed "s|^\./||;s|\.$ext$||" | tr '\n' ' ')"
+    log_info "Switch with: ln -sfn themes/<name>.$ext $dest/theme.$ext"
 
-    log_success "Kitty configuration completed"
+    log_success "$name configuration completed"
+}
+
+configure_kitty() {
+    install_terminal_config kitty conf
+}
+
+configure_alacritty() {
+    install_terminal_config alacritty toml
 }
 
 install_fonts() {
@@ -487,4 +500,56 @@ configure_fastfetch() {
         log_error "Failed to copy fastfetch configuration"
         return 1
     fi
+}
+
+install_fastfetch() {
+    log_info "Installing fastfetch..."
+
+    if pkg_installed fastfetch; then
+        log_success "Fastfetch is already installed"
+    else
+        if run_logged sudo apt install -y fastfetch; then
+            log_success "Fastfetch installed successfully"
+        else
+            log_error "Failed to install fastfetch"
+            return 1
+        fi
+    fi
+
+    configure_fastfetch
+}
+
+configure_aliases() {
+    log_info "Configuring shell aliases..."
+
+    if [ ! -f "$HOME/.zshrc" ]; then
+        log_warning "No .zshrc found, skipping aliases"
+        return 0
+    fi
+
+    backup_file "$HOME/.zshrc"
+
+    # Only pure renames and new names are aliased here. `grep` is deliberately
+    # left alone: ripgrep is not flag-compatible with it (`grep -E` is extended
+    # regex, `rg -E` is --encoding), and `cat` is left alone because it is a
+    # core tool used inside pipelines.
+    #
+    # Ubuntu renames both binaries to avoid clashing with older packages,
+    # so the tools are unusable under their documented names without these.
+    if command -v batcat &> /dev/null; then
+        zshrc_ensure_line "alias bat='batcat'" "bat (Ubuntu ships it as batcat)"
+    fi
+
+    if command -v fdfind &> /dev/null; then
+        zshrc_ensure_line "alias fd='fdfind'" "fd (Ubuntu ships it as fdfind)"
+    fi
+
+    if command -v eza &> /dev/null; then
+        zshrc_ensure_line "alias ls='eza --icons --group-directories-first'" "eza replaces ls"
+        zshrc_ensure_line "alias ll='eza -l --icons --group-directories-first --git'" ""
+        zshrc_ensure_line "alias la='eza -la --icons --group-directories-first --git'" ""
+        zshrc_ensure_line "alias lt='eza --tree --level=2 --icons'" ""
+    fi
+
+    log_success "Shell aliases configured"
 }

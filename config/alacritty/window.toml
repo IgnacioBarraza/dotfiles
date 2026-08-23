@@ -1,0 +1,45 @@
+# ============================================================================
+# Module: Alacritty / Window
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Ventana, scrollback, cursor, seleccion y campana.
+# Los colores viven en themes/.
+# ============================================================================
+
+[window]
+padding = { x = 12, y = 14 }
+dynamic_padding = true
+decorations = "full"
+opacity = 0.94
+blur = true
+startup_mode = "Windowed"
+dynamic_title = true
+
+[window.dimensions]
+columns = 110
+lines = 30
+
+[scrolling]
+history = 10000
+multiplier = 3
+
+[cursor]
+blink_interval = 600
+blink_timeout = 10
+unfocused_hollow = true
+thickness = 0.15
+
+[cursor.style]
+shape = "Beam"
+blinking = "On"
+
+[selection]
+save_to_clipboard = true
+semantic_escape_chars = ",│`|:\"' ()[]{}<>\t"
+
+[mouse]
+hide_when_typing = true
+
+[bell]
+animation = "EaseOutExpo"
+duration = 0

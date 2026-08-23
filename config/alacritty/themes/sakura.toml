@@ -1,0 +1,63 @@
+# ============================================================================
+# Theme: Sakura 桜
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Inspirado en Kanagawa. Oro de torii y rosa de sakura sobre indigo nocturno.
+# Generated from config/kitty/themes/sakura.conf so both terminals stay in sync.
+# ============================================================================
+
+[colors.primary]
+background = "#222335"
+foreground = "#E8EAF5"
+
+[colors.cursor]
+text   = "#222335"
+cursor = "#F7758D"
+
+[colors.vi_mode_cursor]
+text   = "#222335"
+cursor = "#D4AF37"
+
+[colors.selection]
+text       = "#FFFFFF"
+background = "#3B3D59"
+
+[colors.search.matches]
+foreground = "#222335"
+background = "#D4AF37"
+
+[colors.search.focused_match]
+foreground = "#222335"
+background = "#F7758D"
+
+[colors.footer_bar]
+foreground = "#222335"
+background = "#D4AF37"
+
+[colors.hints.start]
+foreground = "#222335"
+background = "#D4AF37"
+
+[colors.hints.end]
+foreground = "#222335"
+background = "#8589A7"
+
+[colors.normal]
+black    = "#222335"
+red      = "#E46876"
+green    = "#7AA25C"
+yellow   = "#D4AF37"
+blue     = "#2CABC8"
+magenta  = "#F7758D"
+cyan     = "#4CB8AF"
+white    = "#D7DAE8"
+
+[colors.bright]
+black    = "#8589A7"
+red      = "#F17C8F"
+green    = "#8DBB69"
+yellow   = "#E6C659"
+blue     = "#4AC4E0"
+magenta  = "#FF97AE"
+cyan     = "#72D3CB"
+white    = "#FFFFFF"
