@@ -100,10 +100,19 @@ Please keep the repository organized.
 - `install.sh` → Main installer, orchestrates the steps
 - `bootstrap.sh` → Clones the repo and hands over to the installer
 - `scripts/` → Installation and automation scripts, sourced by `install.sh`
+- `scripts/utils.sh` → Shared helpers, use these instead of re-implementing them
+- `scripts/validate.sh` → Static checks, also run by CI
 - `config/` → Configuration files, mirrored into `~/.config`
-- `config/kitty/themes/` → Kitty color themes
+- `config/kitty/themes/` and `config/alacritty/themes/` → Color themes
 - `config/bin/` → Scripts installed into `~/.local/bin`
-- `assets/` → Images, icons and screenshots
+- `assets/images/` → Icon and theme previews
+- `.github/workflows/` → CI
+
+The README has the full tree under
+[Project Structure](README.md#-project-structure).
+
+When adding a theme, add it to **both** terminals: CI checks that the Kitty and
+Alacritty palettes stay identical and that every color meets 4.5:1 contrast.
 
 If you're unsure where something belongs, feel free to ask before opening a Pull Request.
 

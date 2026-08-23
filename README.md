@@ -170,6 +170,49 @@ Washi paper with traditional Japanese inks, for working in daylight.
 
 ![Yuki theme](assets/images/preview-yuki.png)
 
+### ⌨️ Aliases
+
+Ubuntu renames two of these binaries to avoid clashing with older packages, so
+without an alias the tools are unusable under the names their own docs use.
+
+| Alias   | Runs                                            | Why                              |
+| :------ | :---------------------------------------------- | :------------------------------- |
+| `bat`   | `batcat`                                        | Ubuntu ships bat as `batcat`     |
+| `fd`    | `fdfind`                                        | Ubuntu ships fd-find as `fdfind` |
+| `ls`    | `eza --icons --group-directories-first`         | —                                |
+| `ll`    | `eza -l --icons --group-directories-first --git`| Long listing with git status     |
+| `la`    | `eza -la --icons --group-directories-first --git`| Same, including dotfiles        |
+| `lt`    | `eza --tree --level=2 --icons`                  | Two-level tree                   |
+
+`grep` and `cat` are deliberately left alone. ripgrep is not flag-compatible
+with grep (`grep -E` is extended regex, `rg -E` is `--encoding`), and `cat` is
+a core tool used inside pipelines.
+
+## 📁 Project Structure
+
+```text
+.
+├── bootstrap.sh              # Clones the repo, then hands over to install.sh
+├── install.sh                # Main installer, orchestrates every step
+├── scripts/
+│   ├── logging.sh            # Timestamped logging to terminal and file
+│   ├── utils.sh              # Shared helpers (package checks, backups, .zshrc edits)
+│   ├── base_packages.sh      # Base toolchain
+│   ├── setup_git.sh          # Git config and optional SSH key
+│   ├── terminal_setup.sh     # Terminal, fonts, ZSH, Starship, fastfetch, Pokémon art
+│   └── validate.sh           # Static checks, also run by CI
+├── config/
+│   ├── kitty/                # Modular config + themes/, theme.conf is a symlink
+│   ├── alacritty/            # Same layout, themes generated from the Kitty ones
+│   ├── starship/             # Prompt
+│   ├── fastfetch/            # System info layout
+│   └── bin/                  # Scripts installed into ~/.local/bin
+└── .github/workflows/ci.yml  # Runs scripts/validate.sh on every push and PR
+```
+
+Everything under `config/` mirrors into `~/.config/`, except `config/bin/`,
+which goes to `~/.local/bin/`.
+
 ## 🚀 Quick Start
 
 #### ⚠️ Pre-requisites and VERY Important!
@@ -297,16 +340,51 @@ curl -fLO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraC
 unzip -o FiraCode.zip -d ~/.local/share/fonts && fc-cache -f
 ```
 
-#### **Kitty shows no colors or the wrong theme**
+#### **The terminal shows no colors or the wrong theme**
 
 ```bash
-# theme.conf must be a symlink into themes/
+# The theme file must be a symlink into themes/
 ls -l ~/.config/kitty/theme.conf
+ls -l ~/.config/alacritty/theme.toml
 
 # Recreate it if broken
 ln -sfn themes/sakura.conf ~/.config/kitty/theme.conf
+ln -sfn themes/sakura.toml ~/.config/alacritty/theme.toml
 
-# Reload without restarting kitty: ctrl+shift+f5
+# Kitty reloads with ctrl+shift+f5; Alacritty reloads on its own
+```
+
+#### **The prompt looks wrong after switching themes**
+
+The prompt uses ANSI color names, so it follows the terminal theme. If it looks
+washed out, the terminal is probably still on its old palette:
+
+```bash
+# Confirm which theme is actually active
+readlink ~/.config/kitty/theme.conf
+
+# Reload kitty (ctrl+shift+f5) or open a new window
+```
+
+#### **Aliases like `ll` or `bat` are not found**
+
+```bash
+# They live in .zshrc, so they only exist in a new interactive zsh
+grep alias ~/.zshrc
+exec zsh
+
+# If .zshrc has no aliases, the CLI tools were probably not installed
+command -v eza batcat fdfind
+```
+
+#### **The Pokémon art is off-centre or slow**
+
+```bash
+# The info block height is cached; delete it to force a fresh measurement
+rm -f ~/.cache/pokemon-fetch-height
+
+# Run it directly to see any error it would otherwise hide at shell start
+~/.local/bin/pokemon.sh
 ```
 
 #### **ZSH Configuration Issues**
@@ -358,16 +436,22 @@ tail -f Dotfiles-Logs/Nach0_0-Install-Scripts-<timestamp>.log
 
 ```bash
 # Remove shell and terminal configuration
-rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/kitty ~/.config/fastfetch ~/.config/starship.toml
-rm -f ~/.local/bin/pokemon.sh
+rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/starship.toml \
+       ~/.config/kitty ~/.config/alacritty ~/.config/fastfetch
+rm -f ~/.local/bin/pokemon.sh ~/.cache/pokemon-fetch-height
 
 # Remove installed tools
-sudo apt remove --purge kitty fastfetch zsh
+sudo apt remove --purge kitty alacritty fastfetch zsh
+sudo apt remove --purge eza bat ripgrep fd-find jq fzf htop btop tree zoxide
 cargo uninstall pokeget
 sh -c 'command -v starship && sudo rm "$(command -v starship)"'
 
+# Remove the fonts the installer downloaded (apt packages are removed above)
+rm -rf ~/.local/share/fonts/FiraCode*NerdFont* && fc-cache -f
+
 # The installer backs up every file it replaces, next to the original:
-ls -d ~/.config/kitty.bak.* ~/.zshrc.bak.* 2>/dev/null
+ls -d ~/.config/kitty.bak.* ~/.config/alacritty.bak.* 2>/dev/null
+ls ~/.zshrc.bak.* ~/.config/starship.toml.bak.* 2>/dev/null
 ```
 
 ### 💾 Backup & Recovery
@@ -390,7 +474,9 @@ tar -czf dotfiles_backup.tar.gz ~/.zshrc ~/.bashrc ~/.profile ~/.config
 | **Fish shell users**                 | Avoid the auto-install command. Clone manually and run `./install.sh` instead    |
 | **Virtual machines (VM)**            | Ensure VM has sufficient RAM (4GB+) and disk space (20GB+)                       |
 | **Corporate network/proxy**          | Set `http_proxy` and `https_proxy` environment variables before installation     |
-| **Language/Package manager mirrors** | For faster downloads in specific regions, configure apt/npm/pip mirrors manually |
+| **Slow apt mirrors**                 | Pick a closer mirror in Software & Updates, or edit `/etc/apt/sources.list.d/`   |
+| **Nerd Font download blocked**       | The font comes from a GitHub release. Install it by hand, see the section below  |
+| **Multi-line `plugins=()`**          | Supported. Other formats are reported and left untouched rather than rewritten   |
 
 ### 📞 Getting Help
 
@@ -415,8 +501,12 @@ cargo install pokeget
 # CLI utilities
 sudo apt install -y eza bat ripgrep fd-find jq fzf htop btop tree zoxide
 
-# Kitty configuration only
+# Terminal configuration only (keeps the theme symlink intact)
 cp -r config/kitty/. ~/.config/kitty/
+cp -r config/alacritty/. ~/.config/alacritty/
+
+# Alacritty
+sudo apt install -y alacritty
 ```
 
 ### ✨ Post-Installation Customization
@@ -424,8 +514,9 @@ cp -r config/kitty/. ~/.config/kitty/
 Beyond the basics, you might want to:
 
 ```bash
-# Switch the Kitty theme (sakura | kanagawa | yuki)
+# Switch theme (sakura | kanagawa | yuki)
 ln -sfn themes/kanagawa.conf ~/.config/kitty/theme.conf
+ln -sfn themes/kanagawa.toml ~/.config/alacritty/theme.toml
 
 # Configure Git user details
 git config --global user.name "Your Name"
@@ -452,6 +543,21 @@ Planned, not implemented yet. The installer does **not** touch any of these:
 | **Databases**  | PostgreSQL client, Redis, MongoDB Shell, SQLite |
 | **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
 
+## ✅ Validating changes
+
+Every static check CI runs is also available locally:
+
+```bash
+./scripts/validate.sh
+```
+
+It checks shell syntax, ShellCheck, that the config files parse, that the theme
+symlinks resolve, that the Kitty and Alacritty palettes stay identical, and that
+every theme color meets 4.5:1 contrast against its background.
+
+Steps whose tool is not installed are skipped rather than failed, so it works
+on a machine that only has some of them.
+
 ## 🤝 Contributing
 
 Contributions are always welcome!
@@ -471,13 +577,32 @@ Special thanks to the creators and projects that inspired this repository:
 
 This repository also makes use of and builds upon the following open-source projects:
 
+**Terminal and shell**
+
+- [Kitty](https://sw.kovidgoyal.net/kitty/) by Kovid Goyal
+- [Alacritty](https://alacritty.org/) by the Alacritty contributors
+- [Oh My Zsh](https://ohmyz.sh/) by the community
 - [Starship](https://starship.rs/) by the community
+- [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) and
+  [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) by zsh-users
+- [zsh-history-enquirer](https://github.com/zthxxx/zsh-history-enquirer) by zthxxx
+
+**Look and feel**
+
 - [Kanagawa](https://github.com/rebelot/kanagawa.nvim) by rebelot, basis for the `kanagawa` theme
 - [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts) by ryanoasis
+- [Fira Code](https://github.com/tonsky/FiraCode) by Nikita Prokopov
+- [Noto CJK](https://github.com/notofonts/noto-cjk) by Google
+- [fastfetch](https://github.com/fastfetch-cli/fastfetch) by the fastfetch contributors
 - [pokeget](https://github.com/talwat/pokeget-rs) by talwat
 - [pokefetch](https://github.com/Discomanfulanito/pokefetch) by Discomanfulanito, basis for `pokemon.sh`
-- [zsh-history-enquirer](https://github.com/zthxxx/zsh-history-enquirer) by zthxxx
-- [Oh My Zsh](https://ohmyz.sh/) by the community
+
+**CLI tools**
+
+- [eza](https://github.com/eza-community/eza), [bat](https://github.com/sharkdp/bat),
+  [fd](https://github.com/sharkdp/fd), [ripgrep](https://github.com/BurntSushi/ripgrep),
+  [zoxide](https://github.com/ajeetdsouza/zoxide), [fzf](https://github.com/junegunn/fzf),
+  [btop](https://github.com/aristocratos/btop) and [jq](https://github.com/jqlang/jq)
 
 ---
 
