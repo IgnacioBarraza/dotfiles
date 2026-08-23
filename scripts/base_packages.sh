@@ -11,18 +11,16 @@
 #   - update_system: Updates system package lists
 #   - check_base_dependencies: Checks critical dependencies
 #   - install_base_packages: Main installation function
-#   - cleanup_after_base_install: Cleanup after installation
 
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_error, log_warning)
+#   - utils.sh (for pkg_installed, run_logged)
 #   - Colors defined in main script
 
 update_system() {
     log_info "Updating system packages..."
 
-    sudo apt update 2>&1 | tee -a "$LOG"
-
-    if [ $? -eq 0 ]; then
+    if run_logged sudo apt update; then
         log_success "System packages updated"
     else
         log_error "Failed to update system packages"
@@ -31,9 +29,7 @@ update_system() {
 
     log_info "Upgrading system packages..."
 
-    sudo apt upgrade -y 2>&1 | tee -a "$LOG"
-
-    if [ $? -eq 0 ]; then
+    if run_logged sudo apt upgrade -y; then
         log_success "System packages updated"
     else
         log_error "Failed to update system packages"
@@ -103,18 +99,15 @@ install_base_packages() {
     local failed_packages=()
 
     for pkg in "${base_packages[@]}"; do
-        if dpkg -l | grep -q "^ii  $pkg"; then
+        if pkg_installed "$pkg"; then
             log_info "$pkg already installed"
             ((installed_count++))
             continue
         fi
         
         log_info "Installing $pkg..."
-        sudo apt install -y "$pkg" 2>&1 | tee -a "$LOG"
-        
-        local exit_code=${PIPESTATUS[0]}
 
-        if [ $exit_code -eq 0 ]; then
+        if run_logged sudo apt install -y "$pkg"; then
             log_success "$pkg installed successfully"
             ((installed_count++))
         else

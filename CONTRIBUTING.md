@@ -97,14 +97,13 @@ Large changes should ideally be discussed in an issue before implementation.
 
 Please keep the repository organized.
 
-- `configs/` → Configuration files
-- `scripts/` → Installation and automation scripts
-- `packages/` → Package lists
+- `install.sh` → Main installer, orchestrates the steps
+- `bootstrap.sh` → Clones the repo and hands over to the installer
+- `scripts/` → Installation and automation scripts, sourced by `install.sh`
+- `config/` → Configuration files, mirrored into `~/.config`
+- `config/kitty/themes/` → Kitty color themes
+- `config/bin/` → Scripts installed into `~/.local/bin`
 - `assets/` → Images, icons and screenshots
-- `themes/` → Themes
-- `fonts/` → Fonts
-- `wallpapers/` → Wallpapers
-- `docs/` → Additional documentation
 
 If you're unsure where something belongs, feel free to ask before opening a Pull Request.
 
@@ -125,6 +124,12 @@ Whenever possible:
 - Reuse existing scripts instead of duplicating logic.
 - Avoid unnecessary dependencies.
 - Keep scripts focused on a single responsibility.
+- Use the helpers in `scripts/utils.sh` (`pkg_installed`, `run_logged`,
+  `backup_file`, `zshrc_ensure_line`, `zshrc_add_plugins`) instead of
+  re-implementing them.
+- Back up any user file before overwriting it.
+- Check exit codes with `run_logged`, never with `$?` after a pipe to `tee`.
+- Run `bash -n` on every script you touch.
 
 ---
 

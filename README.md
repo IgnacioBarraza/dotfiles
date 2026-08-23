@@ -82,14 +82,19 @@
 
 ## 📖 Overview
 
-This repository contains my personal dotfiles and a **fully automated setup script** for Ubuntu 26.04 LTS. It's designed to transform a fresh installation into a complete, opinionated development environment for full-stack engineering.
+This repository contains my personal dotfiles and an **automated setup script** for Ubuntu 26.04 LTS. It turns a fresh installation into an opinionated, terminal-first development environment.
 
 The setup includes:
 
-- A **modern terminal** with ZSH, Oh My Zsh, and the Jovial theme
-- **Development languages and tools** (Node.js, Python, Java, Go, C/C++)
-- **Containers and databases** (Docker, PostgreSQL, Redis)
-- **KDE customizations** for a polished desktop experience
+- A **modern terminal** with Kitty, ZSH, Oh My Zsh and Starship
+- **Three Japanese-inspired themes** for Kitty, switchable with a symlink
+- **Fonts** (FiraCode Nerd Font, Noto Sans CJK) so icons and kanji actually render
+- **CLI utilities** (eza, bat, ripgrep, fd, jq, fzf, btop, zoxide)
+- **Pokémon ASCII art** on terminal startup, via fastfetch and pokeget
+
+> [!NOTE]
+> Language runtimes and services (Node, Python tooling, Java, Go, Docker, databases)
+> are **not installed yet**. See the [Roadmap](#-roadmap).
 
 ## 📋 System Requirements
 
@@ -104,16 +109,33 @@ Before you begin, ensure your system meets the following requirements:
 
 Your new development environment will include:
 
-| Category                     | Tools                                                                |
-| :--------------------------- | :------------------------------------------------------------------- |
-| **🐚 Shell & Terminal**      | ZSH, Oh My Zsh, Jovial Theme, zsh-autosuggestions, Pokémon ASCII art |
-| **📦 JavaScript/TypeScript** | NVM, Node.js (LTS), pnpm, yarn, Angular CLI, Next.js, React          |
-| **🐍 Python**                | Python 3, pipx, ipython, black, flake8, mypy                         |
-| **☕ Java**                  | OpenJDK 21, Maven, Gradle                                            |
-| **🐹 Go**                    | Latest stable version                                                |
-| **🐳 Containers**            | Docker CE, Docker Compose                                            |
-| **🛢️ Databases**             | PostgreSQL (client), Redis, MongoDB Shell, SQLite                    |
-| **🛠️ CLI Utilities**         | eza, bat, ripgrep, fd, jq, htop, btop, httpie                        |
+| Category                | Tools                                                                           |
+| :---------------------- | :------------------------------------------------------------------------------ |
+| **🖥️ Terminal**         | Kitty (or Alacritty), modular config, 3 switchable themes                       |
+| **🐚 Shell**            | ZSH, Oh My Zsh, Starship prompt                                                 |
+| **🔌 ZSH Plugins**      | zsh-autosuggestions, zsh-syntax-highlighting, zsh-history-enquirer              |
+| **🔤 Fonts**            | FiraCode Nerd Font, Noto Sans CJK                                               |
+| **🛠️ CLI Utilities**    | eza, bat, ripgrep, fd, jq, fzf, htop, btop, tree, zoxide                        |
+| **🧱 Base Toolchain**   | build-essential, curl, wget, git, python3, python3-pip, cargo                   |
+| **🎨 Customization**    | fastfetch with a Japanese layout, Pokémon ASCII art on startup                  |
+| **🔧 Git**              | user config, sane defaults, optional SSH key generation                         |
+
+### 🎨 Kitty themes
+
+The Kitty config is modular. `theme.conf` is a symlink into `themes/`, so switching is one command:
+
+```bash
+ln -sfn themes/kanagawa.conf ~/.config/kitty/theme.conf
+# then reload with ctrl+shift+f5
+```
+
+| Theme        | Style | Description                                          |
+| :----------- | :---- | :--------------------------------------------------- |
+| `sakura`     | Dark  | Default. Torii gold and sakura pink over night indigo |
+| `kanagawa`   | Dark  | Muted earth tones, the warm counterpart               |
+| `yuki`       | Light | Washi paper with traditional Japanese inks            |
+
+All colors are checked to at least 4.5:1 contrast against their background.
 
 ## 🚀 Quick Start
 
@@ -125,15 +147,25 @@ Your new development environment will include:
 
 ## ✨ Auto install
 
-> [!CAUTION]
-> If you are using FISH SHELL, DO NOT use this function. Clone and ran install.sh instead
-
-- you can use this command to automatically clone the installer and ran the script for you
-- NOTE: `curl` package is required before running this command
+- This clones the repository to `~/dotfiles` and runs the installer for you
+- NOTE: `curl` is required before running this command
 
 ```bash
-sh <(curl -L https://raw.githubusercontent.com/IgnacioBarraza/dotfiles/main/install.sh)
+sh <(curl -L https://raw.githubusercontent.com/IgnacioBarraza/dotfiles/main/bootstrap.sh)
 ```
+
+Piping also works, since the bootstrap re-attaches the terminal for the prompts:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/IgnacioBarraza/dotfiles/main/bootstrap.sh | sh
+```
+
+Set `DOTFILES_DIR` to clone somewhere other than `~/dotfiles`.
+
+> [!IMPORTANT]
+> Do **not** pipe `install.sh` itself. It resolves its own directory to load
+> `scripts/*.sh`, which does not exist when the script has no path on disk.
+> That is what `bootstrap.sh` is for.
 
 ## ✨ Manual install
 
@@ -157,8 +189,9 @@ source ~/.zshrc
 ```
 
 - reboot or logout
-- by default `jovial` theme is installed. Which is from external oh-my-zsh theme. You can find more themes from this [`OH-MY-ZSH-THEMES`](https://github.com/ohmyzsh/ohmyzsh/wiki/Themes)
-- to change the theme, manually edit `~/.zshrc` . Look for ZSH_THEME="desired theme"
+- the prompt is drawn by **Starship**, not by an Oh My Zsh theme. `ZSH_THEME` is left
+  at `robbyrussell` and has no visible effect
+- to customize the prompt, edit `~/.config/starship.toml`
 
 ## ❓ Troubleshooting & Post-Installation
 
@@ -171,11 +204,15 @@ After running the installer, verify your environment with these steps:
 echo $SHELL          # Should show /usr/bin/zsh
 
 # Verify installed tools
-node --version       # Node.js
-python3 --version    # Python
-java -version        # Java
-go version           # Go
-docker --version     # Docker
+kitty --version      # Terminal
+starship --version   # Prompt
+fastfetch --version  # System info
+pokeget --version    # Pokémon sprites
+eza --version        # ls replacement
+
+# Verify fonts (both must return a match)
+fc-list -f '%{family[0]}\n' | grep -x "FiraCode Nerd Font Mono"
+fc-list :lang=ja | grep -i "noto sans cjk"
 ```
 
 ### 🔧 Common Issues & Solutions
@@ -185,34 +222,34 @@ docker --version     # Docker
 | Symptom                                  | Solution                                                                                         |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Script exits immediately                 | Ensure you're **not running as root** and have write permissions in the current directory        |
-| Installation stops at a specific package | Check `Dotfiles-Logs/install_error.log` for the exact error message                              |
+| Installation stops at a specific package | Check the newest file in `Dotfiles-Logs/` for the exact error message                            |
 | Network-related errors                   | Verify your internet connection. Some package managers (npm, cargo) may need proxy configuration |
 | Permission denied errors                 | Run `sudo apt update` manually first, then re-run the installer                                  |
 
-#### **Docker Issues**
+#### **Icons or Japanese text render as boxes (▯)**
 
 ```bash
-# If docker commands require sudo
-sudo usermod -aG docker $USER
-# Log out and back in for changes to take effect
+# The Nerd Font provides the icons, Noto CJK provides the kanji. Both are needed.
+fc-list -f '%{family[0]}\n' | grep -x "FiraCode Nerd Font Mono"
+fc-list :lang=ja | grep -i "noto sans cjk"
 
-# If docker service isn't running
-sudo systemctl enable docker
-sudo systemctl start docker
+# If either is missing
+sudo apt install -y fonts-noto-cjk
+# fonts-firacode from apt has NO Nerd glyphs, use the patched build:
+curl -fLO https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip
+unzip -o FiraCode.zip -d ~/.local/share/fonts && fc-cache -f
 ```
 
-#### **Node.js/NVM Issues**
+#### **Kitty shows no colors or the wrong theme**
 
 ```bash
-# Reload NVM after installation
-source ~/.nvm/nvm.sh
+# theme.conf must be a symlink into themes/
+ls -l ~/.config/kitty/theme.conf
 
-# Install latest LTS version if auto-installation failed
-nvm install --lts
-nvm use --lts
+# Recreate it if broken
+ln -sfn themes/sakura.conf ~/.config/kitty/theme.conf
 
-# Set default version
-nvm alias default node
+# Reload without restarting kitty: ctrl+shift+f5
 ```
 
 #### **ZSH Configuration Issues**
@@ -234,7 +271,8 @@ rm -rf ~/.zshrc ~/.oh-my-zsh
 ```bash
 # Check if paths are correctly set
 echo $PATH
-which node        # Should point to ~/.nvm/versions/node/...
+which starship    # Should point to /usr/local/bin/starship
+which pokeget     # Should point to ~/.cargo/bin/pokeget
 which python3     # Should point to /usr/bin/python3
 
 # Reload the environment
@@ -262,16 +300,17 @@ tail -f Dotfiles-Logs/Nach0_0-Install-Scripts-<timestamp>.log
 > This will remove all dotfiles and tools installed by the script. Backup important data first!
 
 ```bash
-# Remove dotfiles and configurations
-rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/nvim ~/.bashrc_bak
+# Remove shell and terminal configuration
+rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/kitty ~/.config/fastfetch ~/.config/starship.toml
+rm -f ~/.local/bin/pokemon.sh
 
-# Remove installed development tools (manual)
-nvm deactivate && nvm unload
-pipx uninstall-all
-sudo apt remove --purge docker.io docker-ce
+# Remove installed tools
+sudo apt remove --purge kitty fastfetch zsh
+cargo uninstall pokeget
+sh -c 'command -v starship && sudo rm "$(command -v starship)"'
 
-# Restore backup if created
-cp -r ~/dotfiles_backup/* ~/
+# The installer backs up every file it replaces, next to the original:
+ls -d ~/.config/kitty.bak.* ~/.zshrc.bak.* 2>/dev/null
 ```
 
 ### 💾 Backup & Recovery
@@ -310,17 +349,17 @@ tar -czf dotfiles_backup.tar.gz ~/.zshrc ~/.bashrc ~/.profile ~/.config
 If any specific tool fails to install, here are manual installation commands:
 
 ```bash
-# Angular CLI
-npm install -g @angular/cli
+# Starship prompt
+curl -sS https://starship.rs/install.sh | sh
 
-# Python development tools
-pipx install black flake8 mypy ipython
+# pokeget (needs cargo)
+cargo install pokeget
 
-# Go programming language
-sudo snap install go --classic
+# CLI utilities
+sudo apt install -y eza bat ripgrep fd-find jq fzf htop btop tree zoxide
 
-# Redis server (optional)
-sudo apt install redis-server
+# Kitty configuration only
+cp -r config/kitty/. ~/.config/kitty/
 ```
 
 ### ✨ Post-Installation Customization
@@ -328,8 +367,8 @@ sudo apt install redis-server
 Beyond the basics, you might want to:
 
 ```bash
-# Install custom fonts for terminal icons
-sudo apt install fonts-firacode
+# Switch the Kitty theme (sakura | kanagawa | yuki)
+ln -sfn themes/kanagawa.conf ~/.config/kitty/theme.conf
 
 # Configure Git user details
 git config --global user.name "Your Name"
@@ -342,6 +381,21 @@ ssh-add ~/.ssh/id_ed25519
 cat ~/.ssh/id_ed25519.pub  # Add this to GitHub/GitLab
 ```
 
+## 🗺️ Roadmap
+
+Planned, not implemented yet. The installer does **not** touch any of these:
+
+| Area                | Planned                                            |
+| :------------------ | :------------------------------------------------- |
+| **JavaScript**      | NVM, Node.js LTS, pnpm, yarn                       |
+| **Python**          | pipx, ipython, black, flake8, mypy                 |
+| **Java**            | OpenJDK 21, Maven, Gradle                          |
+| **Go**              | Latest stable                                      |
+| **Containers**      | Docker CE, Docker Compose                          |
+| **Databases**       | PostgreSQL client, Redis, MongoDB Shell, SQLite    |
+| **Desktop**         | KDE customizations (Kvantum, kio-gdrive)           |
+| **Terminal**        | Alacritty configuration (currently install only)   |
+
 ## 🤝 Contributing
 
 Contributions are always welcome!
@@ -350,7 +404,7 @@ If you'd like to contribute, please read the [Contributing Guidelines](CONTRIBUT
 
 ## 📄 License
 
-MIT License - feel free to use, modify, and share!
+GNU GPLv3 - see [LICENSE](LICENSE). Feel free to use, modify and share.
 
 ## 🙏 Credits
 
@@ -361,10 +415,13 @@ Special thanks to the creators and projects that inspired this repository:
 
 This repository also makes use of and builds upon the following open-source projects:
 
-- [Jovial Theme](https://github.com/zthxxx/jovial) by zthxxx
-- [Pokémon Terminal Art](https://github.com/shinya/pokemon-terminal-art) by shinya
+- [Starship](https://starship.rs/) by the community
+- [Kanagawa](https://github.com/rebelot/kanagawa.nvim) by rebelot, basis for the `kanagawa` theme
+- [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts) by ryanoasis
+- [pokeget](https://github.com/talwat/pokeget-rs) by talwat
+- [pokefetch](https://github.com/Discomanfulanito/pokefetch) by Discomanfulanito, basis for `pokemon.sh`
+- [zsh-history-enquirer](https://github.com/zthxxx/zsh-history-enquirer) by zthxxx
 - [Oh My Zsh](https://ohmyz.sh/) by the community
-- [NVM](https://github.com/nvm-sh/nvm) by Tim **Caswell**
 
 ---
 

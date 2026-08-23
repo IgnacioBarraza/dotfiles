@@ -53,6 +53,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load logging system
 source "$SCRIPT_DIR/scripts/logging.sh"
+source "$SCRIPT_DIR/scripts/utils.sh"
 source "$SCRIPT_DIR/scripts/base_packages.sh"
 source "$SCRIPT_DIR/scripts/setup_git.sh"
 source "$SCRIPT_DIR/scripts/terminal_setup.sh"
@@ -86,14 +87,14 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $YELLOW "[DRY-RUN] Would perform the following operations:"
     echo ""
     print_color $GREEN "  ✓ Update system packages"
-    print_color $GREEN "  ✓ Configure Git"
-    print_color $GREEN "  ✓ Install Node.js (via NVM)"
-    print_color $GREEN "  ✓ Setup terminal environment (ZSH, Oh My Zsh, Jovial theme, Pokémon art)"
-    print_color $GREEN "  ✓ Install development tools (Python, Java, Go, C/C++)"
-    print_color $GREEN "  ✓ Install Docker and Docker Compose"
-    print_color $GREEN "  ✓ Install database clients (PostgreSQL, Redis, MongoDB)"
-    print_color $GREEN "  ✓ Install CLI utilities (eza, bat, ripgrep, fd, jq)"
-    print_color $GREEN "  ✓ Configure KDE customizations (Kvantum, Fira Code, kio-gdrive)"
+    print_color $GREEN "  ✓ Install base packages (build-essential, curl, git, python3, cargo...)"
+    print_color $GREEN "  ✓ Configure Git (user, defaults, optional SSH key)"
+    print_color $GREEN "  ✓ Install a terminal emulator (Kitty or Alacritty)"
+    print_color $GREEN "  ✓ Install fonts (FiraCode Nerd Font, Noto Sans CJK)"
+    print_color $GREEN "  ✓ Install the Kitty configuration and themes"
+    print_color $GREEN "  ✓ Install ZSH and Oh My Zsh, set it as the default shell"
+    print_color $GREEN "  ✓ Install Starship, ZSH plugins and CLI utilities (eza, bat, ripgrep, fd, jq...)"
+    print_color $GREEN "  ✓ Install Pokémon ASCII art on terminal startup (fastfetch + pokeget)"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
     print_color $INFO "[DRY-RUN] Run without --dry-run to proceed with installation."
@@ -106,19 +107,16 @@ print_color $WARNING "
     █           Nach0_0's UBUNTU 26.04 - Setup            █
     █▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█
 
-    - This repo install and setup dependencies to generate a development environment
-    - These scripts will install and configure a development environment based on the following langs and packages
-        - Node.JS
-        - Angular
-        - React.js
-        - PostgreSQL & PgAdmin4
-        - Zsh (with Jovial theme, this can be changed later if you want another theme)
-        - TypeScript
-        - Go
-        - C/C++
-        - Python
-        - Java 21
-        - And more
+    - This repo installs and configures a terminal-first development environment
+    - These scripts will install and configure:
+        - Base build tooling (build-essential, curl, git, python3, cargo)
+        - Git (user, sane defaults, optional SSH key)
+        - A terminal emulator (Kitty or Alacritty) with themes
+        - Fonts (FiraCode Nerd Font, Noto Sans CJK)
+        - ZSH + Oh My Zsh + Starship + plugins
+        - CLI utilities (eza, bat, ripgrep, fd, jq, fzf, btop...)
+        - Pokémon ASCII art on terminal startup
+    - Language runtimes (Node, Java, Go, Docker...) are NOT installed yet, see the README roadmap
     - To know what it's being installed, check the README.md
     - Use at your own risk!
     - Note: This installer will refuse to run outside Ubuntu 26.04.
@@ -190,9 +188,9 @@ setup_terminal
 
 log_info "Performing final system cleanup..."
 
-sudo apt clean 2>&1 | tee -a "$LOG"
+run_logged sudo apt clean
 
-sudo apt autoremove -y 2>&1 | tee -a "$LOG"
+run_logged sudo apt autoremove -y
 
 log_success "Cleanup completed"
 
