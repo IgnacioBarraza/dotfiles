@@ -217,9 +217,15 @@ shortcut_is_free() {
         sed 's/\\t/,/g'
     }
 
-    # The user's own file, ignoring the entry this run is about to write.
+    # The user's own file, skipping the whole section this run is about to
+    # write. Filtering by line only removed the [services][x.desktop] header
+    # and left its _launch= key behind, so a rerun saw its own binding as
+    # somebody else's and refused to renew it.
     if [ -f "$HOME/.config/kglobalshortcutsrc" ] &&
-       grep -vF "$owner" "$HOME/.config/kglobalshortcutsrc" 2>/dev/null |
+       awk -v owner="$owner" '
+           /^\[/ { skip = index($0, owner) > 0 }
+           !skip
+       ' "$HOME/.config/kglobalshortcutsrc" 2>/dev/null |
        normalise | grep -qE "$pattern"; then
         return 1
     fi
@@ -227,6 +233,19 @@ shortcut_is_free() {
     # Defaults shipped by applications, which the user's file does not repeat.
     if grep -rh "" /usr/share/kglobalaccel/ 2>/dev/null |
        normalise | grep -qE "$pattern"; then
+        return 1
+    fi
+
+    # Applications declare their own shortcuts with X-KDE-Shortcuts in their
+    # desktop entry. Skipping this reported Meta+I as free when System Settings
+    # already claims it.
+    #
+    # The owner's own file is excluded: on a second run the entry written by
+    # the first one would otherwise be read as somebody else's claim, and the
+    # binding would refuse to renew itself.
+    if grep -rh --exclude="$owner" "^X-KDE-Shortcuts=" \
+           /usr/share/applications/ "$HOME/.local/share/applications/" 2>/dev/null |
+       sed 's/^X-KDE-Shortcuts=/,/' | normalise | grep -qE "$pattern"; then
         return 1
     fi
 
@@ -247,6 +266,12 @@ bind_shortcut() {
     kwriteconfig6 --file kglobalshortcutsrc \
         --group "services" --group "$desktop" \
         --key "_launch" "$combo,none,$description" || return 1
+
+    # kglobalaccel discovers entries through the service cache, so a new
+    # desktop file is invisible until the cache is rebuilt.
+    if command -v kbuildsycoca6 &> /dev/null; then
+        kbuildsycoca6 > /dev/null 2>&1 || true
+    fi
 
     if command -v qdbus6 &> /dev/null; then
         qdbus6 org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel.reloadConfig \
@@ -578,6 +603,9 @@ install_wallpaper_shortcut() {
 
     mkdir -p "$desktop_dir"
 
+    # X-KDE-Shortcuts is what makes kglobalaccel register the entry at all.
+    # Writing the binding into kglobalshortcutsrc alone leaves it unregistered
+    # and the key does nothing.
     cat > "$desktop_file" <<DESKTOP
 [Desktop Entry]
 Type=Application
@@ -587,6 +615,7 @@ Exec=$HOME/.local/bin/wallpaper-next
 Icon=preferences-desktop-wallpaper
 Terminal=false
 NoDisplay=true
+X-KDE-Shortcuts=Meta+K
 DESKTOP
 
     if ! command -v kwriteconfig6 &> /dev/null; then
@@ -708,6 +737,7 @@ Exec=$HOME/.local/bin/wallpaper-menu
 Icon=preferences-desktop-wallpaper
 Terminal=false
 NoDisplay=true
+X-KDE-Shortcuts=Meta+Shift+K
 DESKTOP
 
     if command -v kwriteconfig6 &> /dev/null; then
