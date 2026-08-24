@@ -86,7 +86,8 @@ install_zsh() {
         if [[ "$SHELL" != *"zsh"* ]]; then
             log_info "Changing default shell to ZSH..."
             if run_logged sudo chsh -s "$(which zsh)" "$USER"; then
-                log_warning "Default shell changed to ZSH. Please log out and log back in for changes to take effect."
+                log_warning "Default shell changed to ZSH"
+                add_post_install_note "Log out and back in for ZSH to become your shell. To try it now: exec zsh"
             else
                 log_error "Failed to change default shell to ZSH"
                 return 1

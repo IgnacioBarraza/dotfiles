@@ -14,6 +14,7 @@
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_error)
+#   - utils.sh (for run_logged, set_ssh_public_key)
 #   - Colors defined in main script
 
 check_for_git() {
@@ -132,88 +133,98 @@ set_git_defaults() {
 
 generate_ssh_key() {
     log_info "Checking for existing SSH keys..."
-    
-    if [ -f ~/.ssh/id_ed25519 ] || [ -f ~/.ssh/id_rsa ]; then
-        log_info "SSH key already exists."
-        read -rp "Do you want to generate a new SSH key? (This will overwrite existing keys) [y/N]: " generate_new
+
+    local key_file="$HOME/.ssh/id_ed25519"
+
+    if [ -f "$key_file" ] || [ -f "$HOME/.ssh/id_rsa" ]; then
+        log_info "An SSH key already exists."
+        read -rp "Generate a new one? This overwrites the existing key [y/N]: " generate_new
+
         case "$generate_new" in
-            [yY][eE][sS] | [yY])
-                log_info "Generating new SSH key..."
-                ;;
-            *)
-                log_info "Skipping SSH key generation."
-                return 0
-                ;;
+        [yY][eE][sS] | [yY])
+            log_info "Generating a new SSH key..."
+            ;;
+        *)
+            log_info "Keeping the existing SSH key."
+            # Still surface it at the end: the point is to have it to hand.
+            if [ -f "$key_file.pub" ]; then
+                set_ssh_public_key "$key_file.pub"
+            elif [ -f "$HOME/.ssh/id_rsa.pub" ]; then
+                set_ssh_public_key "$HOME/.ssh/id_rsa.pub"
+            fi
+            return 0
+            ;;
         esac
     fi
-    
+
     local ssh_email=""
+
     if git config --global --get user.email &> /dev/null; then
-        local git_email=$(git config --global --get user.email)
+        local git_email
+        git_email="$(git config --global --get user.email)"
         log_info "Git email detected: $git_email"
-        read -rp "Use this email for SSH key? [Y/n]: " use_git_email
+        read -rp "Use this email for the SSH key? [Y/n]: " use_git_email
+
         case "$use_git_email" in
-            [nN][oO] | [nN])
-                read -rp "Enter email for SSH key: " ssh_email
-                ;;
-            *)
-                ssh_email="$git_email"
-                ;;
+        [nN][oO] | [nN])
+            read -rp "Enter the email for the SSH key: " ssh_email
+            ;;
+        *)
+            ssh_email="$git_email"
+            ;;
         esac
     else
-        read -rp "Enter email for SSH key: " ssh_email
+        read -rp "Enter the email for the SSH key: " ssh_email
     fi
-    
+
     if [ -z "$ssh_email" ]; then
         log_error "No email provided. Skipping SSH key generation."
         return 1
     fi
-    
-    mkdir -p ~/.ssh
-    chmod 700 ~/.ssh
-    
-    log_info "Generating SSH key with email: $ssh_email"
-    
-    if ssh-keygen -t ed25519 -C "$ssh_email" -f ~/.ssh/id_ed25519 -N "" 2>&1 | tee -a "$LOG"; then
-        log_success "SSH key generated: ~/.ssh/id_ed25519"
-        local ssh_key_path="$HOME/.ssh/id_ed25519.pub"
+
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    log_info "Generating an ed25519 SSH key for $ssh_email"
+
+    # run_logged rather than `ssh-keygen | tee`: piping into tee made the if
+    # test tee's exit code, which is always 0, so the RSA fallback below was
+    # unreachable and a failed keygen looked like a success.
+    if run_logged ssh-keygen -t ed25519 -C "$ssh_email" -f "$key_file" -N ""; then
+        log_success "SSH key generated: $key_file"
     else
-        log_warning "ed25519 failed, falling back to RSA (4096-bit)"
-        ssh-keygen -t rsa -b 4096 -C "$ssh_email" -f ~/.ssh/id_rsa -N "" 2>&1 | tee -a "$LOG"
-        log_success "SSH key generated: ~/.ssh/id_rsa"
-        local ssh_key_path="$HOME/.ssh/id_rsa.pub"
+        log_warning "ed25519 failed, falling back to RSA 4096"
+        key_file="$HOME/.ssh/id_rsa"
+
+        if ! run_logged ssh-keygen -t rsa -b 4096 -C "$ssh_email" -f "$key_file" -N ""; then
+            log_error "Could not generate an SSH key"
+            return 1
+        fi
+
+        log_success "SSH key generated: $key_file"
     fi
-    
-    chmod 600 ~/.ssh/id_* 2>/dev/null
-    chmod 644 ~/.ssh/id_*.pub 2>/dev/null
-    
-    log_info "Your SSH public key is:"
-    echo ""
-    cat "$ssh_key_path" 2>/dev/null || cat "$HOME"/.ssh/id_*.pub 2>/dev/null
-    echo ""
-    
-    log_info "Add this key to your GitHub/GitLab account:"
-    log_info "  - GitHub: https://github.com/settings/ssh/new"
-    log_info "  - GitLab: https://gitlab.com/-/profile/keys"
-    
-    if command -v xclip &> /dev/null; then
-        read -rp "Do you want to copy the SSH key to clipboard? [y/N]: " copy_key
-        case "$copy_key" in
-            [yY][eE][sS] | [yY])
-                xclip -selection clipboard < "$ssh_key_path" 2>/dev/null || \
-                xclip -i < "$ssh_key_path" 2>/dev/null
-                log_success "SSH key copied to clipboard!"
-                ;;
-            *)
-                log_info "You can copy it manually from above."
-                ;;
-        esac
+
+    chmod 600 "$key_file"
+    chmod 644 "$key_file.pub"
+
+    # Exit code 2 from ssh-add means there is no agent to talk to. Anything else
+    # means one is running, and reusing it avoids leaving an orphan behind.
+    ssh-add -l &> /dev/null
+    if [ "$?" -eq 2 ]; then
+        log_info "Starting an ssh-agent..."
+        # Not piped into tee: the left side of a pipe runs in a subshell, so the
+        # variables ssh-agent exports would be lost before ssh-add sees them.
+        eval "$(ssh-agent -s)" >> "$LOG" 2>&1
+    fi
+
+    if ssh-add "$key_file" >> "$LOG" 2>&1; then
+        log_success "Key added to the ssh-agent"
     else
-        log_info "To copy the key, select and copy it from above."
+        log_warning "Could not add the key to the ssh-agent"
     fi
-    
-    eval "$(ssh-agent -s)" 2>&1 | tee -a "$LOG"
-    ssh-add ~/.ssh/id_ed25519 2>/dev/null || ssh-add ~/.ssh/id_rsa 2>/dev/null
-    
+
+    set_ssh_public_key "$key_file.pub"
+
     log_success "SSH key generation completed"
+    log_info "The public key is shown again at the end of the installation"
 }

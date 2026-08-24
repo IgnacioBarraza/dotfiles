@@ -112,6 +112,35 @@ The setup includes:
 > Language runtimes and services (Node, Python tooling, Java, Go, Docker, databases)
 > are **not installed yet**. See the [Roadmap](#-roadmap).
 
+## 🔑 After the install
+
+The run ends with a summary of everything that still needs a human, so nothing
+important is buried under a thousand lines of apt output:
+
+```text
+    ╭──────────────────────────────────────────────────────────╮
+    │                   BEFORE YOU CARRY ON                    │
+    ╰──────────────────────────────────────────────────────────╯
+
+  • Log out and back in before docker works without sudo. Until then
+    'docker ps' fails with permission denied. To test right now: newgrp docker
+  • Log out and back in for ZSH to become your shell. To try it now: exec zsh
+
+  Your SSH public key, ready to paste:
+
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@example.com
+
+  Add it at:
+    GitHub  https://github.com/settings/ssh/new
+    GitLab  https://gitlab.com/-/profile/keys
+
+  Then check it with:  ssh -T git@github.com
+```
+
+The key is printed with no prefix or colour on its own line, so selecting it
+copies the key and nothing else. It is shown whether the installer generated a
+new key or you kept an existing one.
+
 ## 📋 System Requirements
 
 Before you begin, ensure your system meets the following requirements:

@@ -251,3 +251,7 @@ log_success "Cleanup completed"
 
 print_color $OK "✅ Installation completed successfully!"
 print_color $INFO "📄 Log file saved at: $LOG"
+
+# Anything that still needs a human, collected from every step and printed
+# here rather than where it happened.
+print_post_install_summary

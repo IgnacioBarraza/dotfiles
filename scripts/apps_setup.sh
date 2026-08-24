@@ -245,7 +245,7 @@ install_jetbrains_toolbox() {
     rm -rf "$tmp"
 
     log_success "JetBrains Toolbox installed to /opt/jetbrains-toolbox"
-    log_info "Launch it once to sign in and pick your IDEs"
+    add_post_install_note "Launch JetBrains Toolbox once to sign in and pick your IDEs"
 }
 
 install_postman() {

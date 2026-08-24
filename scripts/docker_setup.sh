@@ -121,12 +121,8 @@ configure_docker_group() {
         return 1
     fi
 
-    log_warning "=============================================================="
-    log_warning "$USER was added to the docker group."
-    log_warning "You must LOG OUT and LOG BACK IN before docker works without sudo."
-    log_warning "Until then, 'docker ps' will fail with permission denied."
-    log_warning "To test without logging out, run: newgrp docker"
-    log_warning "=============================================================="
+    log_warning "$USER was added to the docker group"
+    add_post_install_note "Log out and back in before docker works without sudo. Until then 'docker ps' fails with permission denied. To test right now: newgrp docker"
 }
 
 # lazydocker ships neither an apt package nor a snap, so it comes from the

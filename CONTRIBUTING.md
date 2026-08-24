@@ -156,6 +156,9 @@ Whenever possible:
 - Register third-party apt repositories with `add_apt_repo`, never by hand:
   it uses deb822 format, puts the key in `/etc/apt/keyrings/` and declares
   only the host architecture.
+- Anything the user must do by hand goes through `add_post_install_note`, not
+  a `log_warning` where it happens: by the end of a run, that line is a
+  thousand lines of apt output above the prompt.
 - Reach the repository through `$DOTFILES_DIR`, which `install.sh` exports and
   each script recomputes when sourced on its own. Do not introduce a second
   variable for the same thing: a shared `SCRIPT_DIR` once had the first sourced

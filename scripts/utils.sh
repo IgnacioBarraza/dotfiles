@@ -14,6 +14,9 @@
 #   - zshrc_add_plugins: Merge plugins into the existing plugins=() list
 #   - add_apt_repo: Register a third-party apt repository in deb822 format
 #   - snap_install: Install a snap if it is not already there
+#   - add_post_install_note: Queue something for the summary at the end
+#   - set_ssh_public_key: Record the key to show at the end
+#   - print_post_install_summary: Print everything queued, plus the SSH key
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_warning, log_error)
@@ -258,4 +261,63 @@ snap_install() {
 
     log_error "Failed to install $name"
     return 1
+}
+
+# Anything the user still has to do by hand goes here instead of being logged
+# where it happens. A note printed during step two is a thousand lines of apt
+# output above the prompt by the time the run finishes.
+POST_INSTALL_NOTES=()
+
+# Set by generate_ssh_key so the key can be shown again at the very end, which
+# is the only place the user can actually copy it from.
+SSH_PUBLIC_KEY_PATH=""
+
+add_post_install_note() {
+    POST_INSTALL_NOTES+=("$1")
+}
+
+# Recorded through a setter so the variable has a single owner, and so the
+# scripts that only report a key are not assigning a global they never read.
+set_ssh_public_key() {
+    SSH_PUBLIC_KEY_PATH="$1"
+}
+
+print_post_install_summary() {
+    if [ ${#POST_INSTALL_NOTES[@]} -eq 0 ] && [ -z "$SSH_PUBLIC_KEY_PATH" ]; then
+        return 0
+    fi
+
+    echo ""
+    print_color "$SKY_BLUE" "    ╭──────────────────────────────────────────────────────────╮"
+    print_color "$SKY_BLUE" "    │                   BEFORE YOU CARRY ON                    │"
+    print_color "$SKY_BLUE" "    ╰──────────────────────────────────────────────────────────╯"
+    echo ""
+
+    local note
+    for note in "${POST_INSTALL_NOTES[@]}"; do
+        print_color "$YELLOW" "  • $note"
+    done
+
+    if [ -n "$SSH_PUBLIC_KEY_PATH" ] && [ -f "$SSH_PUBLIC_KEY_PATH" ]; then
+        echo ""
+        print_color "$GREEN" "  Your SSH public key, ready to paste:"
+        echo ""
+        # Printed bare, with no log prefix or colour, so that selecting the line
+        # copies the key and nothing else.
+        cat "$SSH_PUBLIC_KEY_PATH"
+        echo ""
+        print_color "$INFO" "  Add it at:"
+        print_color "$INFO" "    GitHub  https://github.com/settings/ssh/new"
+        print_color "$INFO" "    GitLab  https://gitlab.com/-/profile/keys"
+        echo ""
+        print_color "$INFO" "  Then check it with:  ssh -T git@github.com"
+
+        if command -v xclip &> /dev/null; then
+            print_color "$INFO" "  Or copy it with:     xclip -sel clip < $SSH_PUBLIC_KEY_PATH"
+        elif command -v wl-copy &> /dev/null; then
+            print_color "$INFO" "  Or copy it with:     wl-copy < $SSH_PUBLIC_KEY_PATH"
+        fi
+    fi
+
+    echo ""
 }
