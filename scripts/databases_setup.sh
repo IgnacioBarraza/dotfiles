@@ -21,7 +21,8 @@
 #   - utils.sh (for pkg_installed, run_logged, add_apt_repo, backup_file)
 #   - Colors defined in main script
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set by install.sh; recomputed when this file is sourced on its own.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # MongoDB keys its repository per major version.
 MONGODB_VERSION="8.0"
@@ -186,7 +187,7 @@ install_mongosh() {
 # ---------------------------------------------
 
 install_compose_stack() {
-    local src="$SCRIPT_DIR/../config/docker/docker-compose.yml"
+    local src="$DOTFILES_DIR/config/docker/docker-compose.yml"
 
     if [ ! -f "$src" ]; then
         log_warning "Compose stack not found at config/docker/docker-compose.yml"

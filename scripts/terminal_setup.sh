@@ -27,7 +27,8 @@
 #   - logging.sh (for log_info, log_success, log_error)
 #   - Colors defined in main script
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set by install.sh; recomputed when this file is sourced on its own.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 setup_terminal() {
     log_info "Starting terminal environment setup"
@@ -135,9 +136,9 @@ configure_shell() {
 
         mkdir -p ~/.config
 
-        if [ -f "$SCRIPT_DIR/../config/starship/starship.toml" ]; then
+        if [ -f "$DOTFILES_DIR/config/starship/starship.toml" ]; then
             backup_file "$HOME/.config/starship.toml"
-            cp "$SCRIPT_DIR/../config/starship/starship.toml" ~/.config/starship.toml
+            cp "$DOTFILES_DIR/config/starship/starship.toml" ~/.config/starship.toml
             log_success "starship.toml copied from config/starship/ to ~/.config/"
         else
             log_warning "starship.toml not found at config/starship/, using default config"
@@ -335,8 +336,8 @@ install_pokemon_art() {
         # Create local bin directory if it doesn't exist
         mkdir -p ~/.local/bin
 
-        if [ -f "$SCRIPT_DIR/../config/bin/pokemon.sh" ]; then
-            cp "$SCRIPT_DIR/../config/bin/pokemon.sh" ~/.local/bin/
+        if [ -f "$DOTFILES_DIR/config/bin/pokemon.sh" ]; then
+            cp "$DOTFILES_DIR/config/bin/pokemon.sh" ~/.local/bin/
             chmod +x ~/.local/bin/pokemon.sh
             log_success "pokemon.sh copied from config/bin/"
         fi
@@ -358,7 +359,7 @@ install_pokemon_art() {
 install_terminal_config() {
     local name="$1"
     local ext="$2"
-    local src="$SCRIPT_DIR/../config/$name"
+    local src="$DOTFILES_DIR/config/$name"
     local dest="$HOME/.config/$name"
 
     if ! command -v "$name" &> /dev/null; then
@@ -474,7 +475,7 @@ install_fonts() {
 configure_fastfetch() {
     log_info "Configuring fastfetch..."
 
-    local src="$SCRIPT_DIR/../config/fastfetch/config.jsonc"
+    local src="$DOTFILES_DIR/config/fastfetch/config.jsonc"
     local dest="$HOME/.config/fastfetch"
 
     if [ ! -f "$src" ]; then

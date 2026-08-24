@@ -70,18 +70,22 @@ EOF
 }
 
 # Get the directory where install.sh is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Repository root. Deliberately not called SCRIPT_DIR: the sourced scripts each
+# resolve their own location into a variable of that name, so sharing it meant
+# the first one sourced silently redirected every source after it.
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOTFILES_DIR
 
 # Load logging system
-source "$SCRIPT_DIR/scripts/logging.sh"
-source "$SCRIPT_DIR/scripts/utils.sh"
-source "$SCRIPT_DIR/scripts/base_packages.sh"
-source "$SCRIPT_DIR/scripts/setup_git.sh"
-source "$SCRIPT_DIR/scripts/terminal_setup.sh"
-source "$SCRIPT_DIR/scripts/apps_setup.sh"
-source "$SCRIPT_DIR/scripts/languages_setup.sh"
-source "$SCRIPT_DIR/scripts/docker_setup.sh"
-source "$SCRIPT_DIR/scripts/databases_setup.sh"
+source "$DOTFILES_DIR/scripts/logging.sh"
+source "$DOTFILES_DIR/scripts/utils.sh"
+source "$DOTFILES_DIR/scripts/base_packages.sh"
+source "$DOTFILES_DIR/scripts/setup_git.sh"
+source "$DOTFILES_DIR/scripts/terminal_setup.sh"
+source "$DOTFILES_DIR/scripts/apps_setup.sh"
+source "$DOTFILES_DIR/scripts/languages_setup.sh"
+source "$DOTFILES_DIR/scripts/docker_setup.sh"
+source "$DOTFILES_DIR/scripts/databases_setup.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0

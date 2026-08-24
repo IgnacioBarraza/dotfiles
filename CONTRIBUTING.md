@@ -156,6 +156,10 @@ Whenever possible:
 - Register third-party apt repositories with `add_apt_repo`, never by hand:
   it uses deb822 format, puts the key in `/etc/apt/keyrings/` and declares
   only the host architecture.
+- Reach the repository through `$DOTFILES_DIR`, which `install.sh` exports and
+  each script recomputes when sourced on its own. Do not introduce a second
+  variable for the same thing: a shared `SCRIPT_DIR` once had the first sourced
+  script silently redirect every source after it.
 - Back up any user file before overwriting it.
 - Check exit codes with `run_logged`, never with `$?` after a pipe to `tee`.
 - Run `./scripts/validate.sh` before opening a Pull Request. It runs the same

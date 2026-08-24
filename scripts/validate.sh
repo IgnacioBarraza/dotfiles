@@ -56,14 +56,42 @@ head_ "Entry points"
 # install.sh must survive being started with sh, not just bash: it re-execs
 # itself. Without that it printed a few errors and carried on into the
 # installer with none of its functions loaded.
+# Requiring empty stderr rather than grepping for known error strings: the
+# first version of this check looked for "not found" and sailed straight past a
+# broken source that said "No such file or directory".
 for shell in bash sh; do
-    if out="$("$shell" install.sh --help 2>&1)" \
-       && ! printf '%s' "$out" | grep -q "Bad substitution\|not found"; then
-        pass "$shell install.sh --help"
+    err="$("$shell" install.sh --help 2>&1 >/dev/null)"
+    if [ -z "$err" ]; then
+        pass "$shell install.sh --help (no stderr)"
     else
-        fail "$shell install.sh --help"
+        printf '%s\n' "$err" | head -5 | sed 's/^/    /'
+        fail "$shell install.sh --help wrote to stderr"
     fi
 done
+
+# A missing or misdirected source is invisible to bash -n: the file parses,
+# then the function it was supposed to define is simply not there.
+missing=""
+for fn in init_logging install_base_packages configure_git setup_terminal \
+          setup_apps setup_languages setup_docker setup_databases; do
+    if ! bash -c "
+        DOTFILES_DIR='$REPO_DIR'
+        for f in \"\$DOTFILES_DIR\"/scripts/*.sh; do
+            [ \"\$f\" = '$REPO_DIR/scripts/validate.sh' ] && continue
+            # shellcheck disable=SC1090
+            . \"\$f\" 2>/dev/null || true
+        done
+        declare -F $fn > /dev/null
+    "; then
+        missing="$missing $fn"
+    fi
+done
+
+if [ -z "$missing" ]; then
+    pass "every entry point function is defined after sourcing"
+else
+    fail "not defined after sourcing:$missing"
+fi
 
 if bash install.sh --dry-run > /dev/null 2>&1; then
     pass "install.sh --dry-run"
