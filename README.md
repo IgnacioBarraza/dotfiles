@@ -104,6 +104,7 @@ The setup includes:
 - **Fonts** (FiraCode Nerd Font, Noto Sans CJK) so icons and kanji actually render
 - **CLI utilities** (eza, bat, ripgrep, fd, jq, fzf, btop, zoxide)
 - **Pokémon ASCII art** on terminal startup, via fastfetch and pokeget
+- **Applications** for full-stack work, picked from a multi-select menu
 
 > [!NOTE]
 > Language runtimes and services (Node, Python tooling, Java, Go, Docker, databases)
@@ -131,6 +132,9 @@ Your new development environment will include:
 | **🛠️ CLI Utilities**  | eza, bat, ripgrep, fd, jq, fzf, htop, btop, tree, zoxide               |
 | **🧱 Base Toolchain** | build-essential, curl, wget, git, python3, python3-pip, cargo          |
 | **🎨 Customization**  | fastfetch with a Japanese layout, Pokémon ASCII art on startup         |
+| **🧑‍💻 Applications** | VS Code, JetBrains Toolbox, Postman, DBeaver, Obsidian, Slack |
+| **🌐 Browser** | Brave, Google Chrome, or keep the Firefox that Ubuntu ships |
+| **🔍 Terminal tools** | lazygit, git-delta, k9s |
 | **🔧 Git**            | user config, sane defaults, optional SSH key generation                |
 | **⌨️ Aliases**        | `ls`/`ll`/`la`/`lt` via eza, plus `bat` and `fd` (Ubuntu renames both) |
 
@@ -188,6 +192,57 @@ without an alias the tools are unusable under the names their own docs use.
 with grep (`grep -E` is extended regex, `rg -E` is `--encoding`), and `cat` is
 a core tool used inside pipelines.
 
+## 🧑‍💻 Applications
+
+Applications are opt-in. The installer prints a grouped menu and you pick what
+you want, so nothing lands on the machine just because it was on a list.
+
+```text
+  Editors and IDEs
+     1) Visual Studio Code     (apt, Microsoft repo)
+     2) JetBrains Toolbox      (tarball to /opt)
+
+  API clients
+     3) Postman                (snap)
+
+  Databases
+     4) DBeaver Community      (snap)
+
+  Terminal tools
+     5) lazygit                (apt)
+     6) git-delta              (apt)
+     7) k9s                    (snap)
+
+  Notes and chat
+     8) Obsidian               (snap)
+     9) Slack                  (snap)
+
+  Enter numbers separated by commas or spaces (for example: 1,3,5)
+  Type 'all' for everything, or leave empty to skip.
+```
+
+The browser is a separate single-choice prompt: Brave, Google Chrome, or keep
+the Firefox that Ubuntu already ships.
+
+### How each one is installed
+
+| Method | Applications | Why |
+| :----- | :----------- | :-- |
+| apt, third-party repo | VS Code, Brave, Chrome | Upgrades with the rest of the system |
+| apt, Ubuntu archive | lazygit, git-delta | Already packaged |
+| snap | Postman, DBeaver, k9s, Obsidian, Slack | No apt repository exists for these |
+| tarball to `/opt` | JetBrains Toolbox | JetBrains publishes neither a repo nor a snap |
+
+Third-party repositories are registered in deb822 format under
+`/etc/apt/sources.list.d/*.sources`, with the key in `/etc/apt/keyrings/` and
+only the host architecture declared. Declaring extra architectures makes apt
+download their package lists on every update for nothing.
+
+> [!NOTE]
+> `git-delta` is the syntax-highlighting pager. Do not install `delta`, which is
+> an unrelated delta-debugging tool sitting next to it in the archive.
+> Selecting git-delta also points `git` at it as the default pager.
+
 ## 📁 Project Structure
 
 ```text
@@ -200,6 +255,7 @@ a core tool used inside pipelines.
 │   ├── base_packages.sh      # Base toolchain
 │   ├── setup_git.sh          # Git config and optional SSH key
 │   ├── terminal_setup.sh     # Terminal, fonts, ZSH, Starship, fastfetch, Pokémon art
+│   ├── apps_setup.sh         # Browser and the application multi-select menu
 │   └── validate.sh           # Static checks, also run by CI
 ├── config/
 │   ├── kitty/                # Modular config + themes/, theme.conf is a symlink
@@ -443,6 +499,17 @@ rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/starship.toml \
        ~/.config/kitty ~/.config/alacritty ~/.config/fastfetch
 rm -f ~/.local/bin/pokemon.sh ~/.cache/pokemon-fetch-height
 
+# Remove the snaps
+sudo snap remove postman dbeaver-ce k9s obsidian slack
+
+# Remove applications installed from apt, and their repositories
+sudo apt remove --purge code brave-browser google-chrome-stable lazygit git-delta
+sudo rm -f /etc/apt/sources.list.d/{vscode,brave-browser,google-chrome}.sources
+sudo rm -f /etc/apt/keyrings/{vscode,brave-browser,google-chrome}.gpg
+
+# Remove JetBrains Toolbox
+sudo rm -rf /opt/jetbrains-toolbox /usr/local/bin/jetbrains-toolbox
+
 # Remove installed tools
 sudo apt remove --purge kitty alacritty fastfetch zsh
 sudo apt remove --purge eza bat ripgrep fd-find jq fzf htop btop tree zoxide
@@ -543,6 +610,7 @@ Planned, not implemented yet. The installer does **not** touch any of these:
 | **Java**       | OpenJDK 21, Maven, Gradle                       |
 | **Go**         | Latest stable                                   |
 | **Containers** | Docker CE, Docker Compose                       |
+| **Containers** | lazydocker, which has neither an apt nor a snap package |
 | **Databases**  | PostgreSQL client, Redis, MongoDB Shell, SQLite |
 | **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
 
@@ -599,6 +667,18 @@ This repository also makes use of and builds upon the following open-source proj
 - [fastfetch](https://github.com/fastfetch-cli/fastfetch) by the fastfetch contributors
 - [pokeget](https://github.com/talwat/pokeget-rs) by talwat
 - [pokefetch](https://github.com/Discomanfulanito/pokefetch) by Discomanfulanito, basis for `pokemon.sh`
+
+**Applications**
+
+- [Visual Studio Code](https://code.visualstudio.com/) by Microsoft
+- [JetBrains Toolbox](https://www.jetbrains.com/toolbox-app/) by JetBrains
+- [Postman](https://www.postman.com/) by Postman, Inc.
+- [DBeaver](https://dbeaver.io/) by DBeaver Corp
+- [Brave](https://brave.com/) by Brave Software
+- [Obsidian](https://obsidian.md/) by Obsidian
+- [lazygit](https://github.com/jesseduffield/lazygit) by Jesse Duffield
+- [delta](https://github.com/dandavison/delta) by Dan Davison
+- [k9s](https://k9scli.io/) by Fernand Galiana
 
 **CLI tools**
 

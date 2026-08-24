@@ -101,6 +101,7 @@ Please keep the repository organized.
 - `bootstrap.sh` → Clones the repo and hands over to the installer
 - `scripts/` → Installation and automation scripts, sourced by `install.sh`
 - `scripts/utils.sh` → Shared helpers, use these instead of re-implementing them
+- `scripts/apps_setup.sh` → Browser and the application multi-select menu
 - `scripts/validate.sh` → Static checks, also run by CI
 - `scripts/check_glyphs.py` → Verifies no glyph was lost and every one has a font
 - `config/` → Configuration files, mirrored into `~/.config`
@@ -135,8 +136,14 @@ Whenever possible:
 - Avoid unnecessary dependencies.
 - Keep scripts focused on a single responsibility.
 - Use the helpers in `scripts/utils.sh` (`pkg_installed`, `run_logged`,
-  `backup_file`, `zshrc_ensure_line`, `zshrc_add_plugins`) instead of
-  re-implementing them.
+  `backup_file`, `zshrc_ensure_line`, `zshrc_add_plugins`, `add_apt_repo`,
+  `snap_install`) instead of re-implementing them.
+- To add an application, append one row to the `APPS` array in
+  `scripts/apps_setup.sh` and write its installer function. The menu, the
+  numbering and the summary all derive from that array.
+- Register third-party apt repositories with `add_apt_repo`, never by hand:
+  it uses deb822 format, puts the key in `/etc/apt/keyrings/` and declares
+  only the host architecture.
 - Back up any user file before overwriting it.
 - Check exit codes with `run_logged`, never with `$?` after a pipe to `tee`.
 - Run `./scripts/validate.sh` before opening a Pull Request. It runs the same

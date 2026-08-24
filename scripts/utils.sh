@@ -12,6 +12,8 @@
 #   - backup_file: Copy a file next to itself with a timestamp suffix
 #   - zshrc_ensure_line: Append a line to .zshrc only if it is not already there
 #   - zshrc_add_plugins: Merge plugins into the existing plugins=() list
+#   - add_apt_repo: Register a third-party apt repository in deb822 format
+#   - snap_install: Install a snap if it is not already there
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_warning, log_error)
@@ -147,4 +149,101 @@ zshrc_add_plugins() {
     fi
 
     log_success "Plugins added to .zshrc: ${added[*]}"
+}
+
+# Registers a third-party apt repository:
+#
+#   add_apt_repo <name> <key_url> <repo_url> <suite> [components]
+#
+# Only the host architecture is declared. Listing extra ones makes apt download
+# their package lists on every single update for nothing, which is how a stray
+# "Architectures: amd64 arm64" ends up costing 292K per refresh on an amd64 box.
+#
+# deb822 (.sources) is used rather than the one-line .list format, so there is
+# one canonical place per repository instead of two that can drift apart.
+add_apt_repo() {
+    local name="$1"
+    local key_url="$2"
+    local repo_url="$3"
+    local suite="$4"
+    local components="${5:-main}"
+
+    local keyring="/etc/apt/keyrings/${name}.gpg"
+    local source_file="/etc/apt/sources.list.d/${name}.sources"
+
+    if [ -f "$source_file" ]; then
+        log_success "$name repository already configured"
+        return 0
+    fi
+
+    sudo install -d -m 0755 /etc/apt/keyrings
+
+    log_info "Fetching the $name signing key..."
+
+    local tmp
+    tmp="$(mktemp)"
+
+    if ! curl -fsSL --retry 3 -o "$tmp" "$key_url"; then
+        log_error "Could not download the $name signing key from $key_url"
+        rm -f "$tmp"
+        return 1
+    fi
+
+    # Vendors publish keys both ASCII-armored and binary; only dearmor the former.
+    if grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$tmp"; then
+        sudo gpg --dearmor --yes -o "$keyring" < "$tmp"
+    else
+        sudo install -m 0644 "$tmp" "$keyring"
+    fi
+    rm -f "$tmp"
+
+    sudo chmod 0644 "$keyring"
+
+    if ! sudo tee "$source_file" > /dev/null <<EOF
+Types: deb
+URIs: $repo_url
+Suites: $suite
+Components: $components
+Architectures: $(dpkg --print-architecture)
+Signed-By: $keyring
+EOF
+    then
+        log_error "Could not write $source_file"
+        sudo rm -f "$keyring"
+        return 1
+    fi
+
+    log_success "$name repository configured"
+
+    if run_logged sudo apt update; then
+        return 0
+    fi
+
+    log_warning "apt update reported problems after adding the $name repository"
+    return 1
+}
+
+snap_install() {
+    local name="$1"
+    shift
+
+    if ! command -v snap &> /dev/null; then
+        log_error "snapd is not installed, cannot install $name"
+        return 1
+    fi
+
+    if snap list "$name" &> /dev/null; then
+        log_success "$name is already installed"
+        return 0
+    fi
+
+    log_info "Installing $name via snap..."
+
+    if run_logged sudo snap install "$name" "$@"; then
+        log_success "$name installed"
+        return 0
+    fi
+
+    log_error "Failed to install $name"
+    return 1
 }

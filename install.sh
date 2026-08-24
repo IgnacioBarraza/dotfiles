@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# The color variables below are consumed by the sourced scripts in scripts/,
+# so shellcheck cannot see all of their uses from this file.
+# This has to sit above the re-exec guard: a file-wide shellcheck directive
+# only applies when it comes before any command.
+# shellcheck disable=SC2034
+
 # Re-exec under bash when started as `sh install.sh`. This script uses arrays,
 # BASH_SOURCE and `source`, none of which dash has. Without this it would print
 # a handful of errors and then carry on into the installer with no functions
@@ -14,9 +20,6 @@ if [ -z "${BASH_VERSION:-}" ]; then
     exit 1
 fi
 
-# The color variables below are consumed by the sourced scripts in scripts/,
-# so shellcheck cannot see all of their uses from this file.
-# shellcheck disable=SC2034
 
 # █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
 # █ Nach0_0 Dotfiles (2026)                             █
@@ -75,6 +78,7 @@ source "$SCRIPT_DIR/scripts/utils.sh"
 source "$SCRIPT_DIR/scripts/base_packages.sh"
 source "$SCRIPT_DIR/scripts/setup_git.sh"
 source "$SCRIPT_DIR/scripts/terminal_setup.sh"
+source "$SCRIPT_DIR/scripts/apps_setup.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0
@@ -115,6 +119,9 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Add shell aliases for the installed CLI tools"
     print_color $GREEN "  ✓ Install fastfetch and its configuration"
     print_color $GREEN "  ✓ Install Pokémon ASCII art on terminal startup (fastfetch + pokeget)"
+    print_color $GREEN "  ✓ Install a browser (Brave, Chrome or keep Firefox)"
+    print_color $GREEN "  ✓ Install applications: VS Code, JetBrains Toolbox, Postman, DBeaver,"
+    print_color $GREEN "    lazygit, git-delta, k9s, Obsidian, Slack (multi-select)"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
     print_color $INFO "[DRY-RUN] Run without --dry-run to proceed with installation."
@@ -136,6 +143,8 @@ print_color $WARNING "
         - ZSH + Oh My Zsh + Starship + plugins
         - CLI utilities (eza, bat, ripgrep, fd, jq, fzf, btop...)
         - Pokémon ASCII art on terminal startup
+        - Applications: VS Code, JetBrains Toolbox, Postman, DBeaver, browser
+        - Terminal tools: lazygit, git-delta, k9s
     - Language runtimes (Node, Java, Go, Docker...) are NOT installed yet, see the README roadmap
     - To know what it's being installed, check the README.md
     - Use at your own risk!
@@ -204,6 +213,9 @@ configure_git
 
 # Setup terminal
 setup_terminal
+
+# Install applications
+setup_apps
 
 
 log_info "Performing final system cleanup..."
