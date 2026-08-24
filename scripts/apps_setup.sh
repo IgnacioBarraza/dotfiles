@@ -311,7 +311,7 @@ install_k9s() {
 }
 
 install_obsidian() {
-    snap_install obsidian --classic
+    snap_install obsidian
 }
 
 install_slack() {

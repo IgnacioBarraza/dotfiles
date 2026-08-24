@@ -237,9 +237,21 @@ snap_install() {
         return 0
     fi
 
+    # Snaps published with classic confinement refuse to install unless
+    # --classic is passed, and the error is only visible in the log. Read the
+    # confinement from the store rather than remembering, per call site, which
+    # snap happens to need the flag.
+    local extra=("$@")
+
+    if [ ${#extra[@]} -eq 0 ] &&
+       snap info --verbose "$name" 2>/dev/null | grep -qE "^ *confinement: *classic"; then
+        extra+=(--classic)
+        log_info "$name uses classic confinement, adding --classic"
+    fi
+
     log_info "Installing $name via snap..."
 
-    if run_logged sudo snap install "$name" "$@"; then
+    if run_logged sudo snap install "$name" "${extra[@]}"; then
         log_success "$name installed"
         return 0
     fi
