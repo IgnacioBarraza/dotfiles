@@ -212,6 +212,16 @@ for name, svc in services.items():
 sys.exit(0 if ok else 1)
 COMPOSE_EOF
 
+head_ "KDE colour schemes"
+# Regenerates in memory and compares: the .colors files are derived from the
+# Kitty themes, so a palette edit that skips the generator is caught here
+# rather than shipping a desktop whose colours no longer match the terminal.
+if python3 "$REPO_DIR/scripts/generate_kde_colors.py" --check; then
+    pass "derived from the Kitty themes, contrast holds in every section"
+else
+    fail "run scripts/generate_kde_colors.py to regenerate"
+fi
+
 head_ "Theme symlinks"
 for link in config/kitty/theme.conf config/alacritty/theme.toml; do
     if [ -L "$link" ] && [ -e "$link" ]; then
