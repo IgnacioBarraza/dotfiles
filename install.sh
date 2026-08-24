@@ -79,6 +79,7 @@ source "$SCRIPT_DIR/scripts/base_packages.sh"
 source "$SCRIPT_DIR/scripts/setup_git.sh"
 source "$SCRIPT_DIR/scripts/terminal_setup.sh"
 source "$SCRIPT_DIR/scripts/apps_setup.sh"
+source "$SCRIPT_DIR/scripts/languages_setup.sh"
 
 DO_DRY_RUN=0
 SHOW_HELP=0
@@ -122,6 +123,8 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Install a browser (Brave, Chrome or keep Firefox)"
     print_color $GREEN "  ✓ Install applications: VS Code, JetBrains Toolbox, Postman, DBeaver,"
     print_color $GREEN "    lazygit, git-delta, k9s, Obsidian, Slack (multi-select)"
+    print_color $GREEN "  ✓ Install languages: Node via nvm, Python tooling via pipx,"
+    print_color $GREEN "    JDK/Maven/Gradle via SDKMAN, Go (multi-select)"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
     print_color $INFO "[DRY-RUN] Run without --dry-run to proceed with installation."
@@ -145,7 +148,8 @@ print_color $WARNING "
         - Pokémon ASCII art on terminal startup
         - Applications: VS Code, JetBrains Toolbox, Postman, DBeaver, browser
         - Terminal tools: lazygit, git-delta, k9s
-    - Language runtimes (Node, Java, Go, Docker...) are NOT installed yet, see the README roadmap
+        - Languages: Node (nvm), Python tooling (pipx), JVM (SDKMAN), Go
+    - Docker and database servers are NOT installed yet, see the README roadmap
     - To know what it's being installed, check the README.md
     - Use at your own risk!
     - Note: This installer will refuse to run outside Ubuntu 26.04.
@@ -216,6 +220,9 @@ setup_terminal
 
 # Install applications
 setup_apps
+
+# Install language runtimes and tooling
+setup_languages
 
 
 log_info "Performing final system cleanup..."

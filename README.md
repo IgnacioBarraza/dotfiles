@@ -105,6 +105,7 @@ The setup includes:
 - **CLI utilities** (eza, bat, ripgrep, fd, jq, fzf, btop, zoxide)
 - **Pokémon ASCII art** on terminal startup, via fastfetch and pokeget
 - **Applications** for full-stack work, picked from a multi-select menu
+- **Language runtimes** through version managers, so a project can pin its own
 
 > [!NOTE]
 > Language runtimes and services (Node, Python tooling, Java, Go, Docker, databases)
@@ -135,6 +136,7 @@ Your new development environment will include:
 | **🧑‍💻 Applications** | VS Code, JetBrains Toolbox, Postman, DBeaver, Obsidian, Slack |
 | **🌐 Browser** | Brave, Google Chrome, or keep the Firefox that Ubuntu ships |
 | **🔍 Terminal tools** | lazygit, git-delta, k9s |
+| **📦 Languages** | Node via nvm, Python tooling via pipx, JVM via SDKMAN, Go |
 | **🔧 Git**            | user config, sane defaults, optional SSH key generation                |
 | **⌨️ Aliases**        | `ls`/`ll`/`la`/`lt` via eza, plus `bat` and `fd` (Ubuntu renames both) |
 
@@ -243,6 +245,43 @@ download their package lists on every update for nothing.
 > an unrelated delta-debugging tool sitting next to it in the archive.
 > Selecting git-delta also points `git` at it as the default pager.
 
+## 📦 Languages
+
+Same idea as the applications: a grouped multi-select, nothing installed unless
+you pick it.
+
+```text
+  JavaScript and TypeScript
+     1) nvm and Node.js LTS        (install script)
+     2) pnpm and yarn              (corepack)
+
+  Python
+     3) pipx and dev tools         (apt, then pipx)
+
+  Java and JVM
+     4) SDKMAN and OpenJDK 21      (install script)
+     5) Maven and Gradle           (via SDKMAN)
+
+  Go
+     6) Go toolchain               (apt)
+```
+
+### Why version managers
+
+| Stack | Installed with | Why not apt |
+| :---- | :------------- | :---------- |
+| Node | **nvm** | Projects pin their own version; apt has one |
+| JVM | **SDKMAN** | The Gradle in the Ubuntu archive is **4.4.1, from 2017** |
+| Python tools | **pipx** | Ubuntu marks the system interpreter externally managed (PEP 668), so `pip install` into it fails by design |
+| Go | apt | Only one minor behind upstream and it integrates with the system |
+
+SDKMAN and nvm both append to `~/.zshrc`, and both are re-read on every new
+shell, so `nvm use` and `sdk use` work per project.
+
+> [!NOTE]
+> Python linting uses **ruff**, which covers what black and flake8 did between
+> them and runs far faster. `mypy` and `ipython` are installed alongside it.
+
 ## 📁 Project Structure
 
 ```text
@@ -256,6 +295,7 @@ download their package lists on every update for nothing.
 │   ├── setup_git.sh          # Git config and optional SSH key
 │   ├── terminal_setup.sh     # Terminal, fonts, ZSH, Starship, fastfetch, Pokémon art
 │   ├── apps_setup.sh         # Browser and the application multi-select menu
+│   ├── languages_setup.sh    # Node, Python tooling, the JVM stack and Go
 │   └── validate.sh           # Static checks, also run by CI
 ├── config/
 │   ├── kitty/                # Modular config + themes/, theme.conf is a symlink
@@ -499,6 +539,11 @@ rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/starship.toml \
        ~/.config/kitty ~/.config/alacritty ~/.config/fastfetch
 rm -f ~/.local/bin/pokemon.sh ~/.cache/pokemon-fetch-height
 
+# Remove language toolchains
+rm -rf ~/.nvm ~/.sdkman
+pipx uninstall-all
+sudo apt remove --purge golang-go pipx
+
 # Remove the snaps
 sudo snap remove postman dbeaver-ce k9s obsidian slack
 
@@ -605,12 +650,7 @@ Planned, not implemented yet. The installer does **not** touch any of these:
 
 | Area           | Planned                                         |
 | :------------- | :---------------------------------------------- |
-| **JavaScript** | NVM, Node.js LTS, pnpm, yarn                    |
-| **Python**     | pipx, ipython, black, flake8, mypy              |
-| **Java**       | OpenJDK 21, Maven, Gradle                       |
-| **Go**         | Latest stable                                   |
-| **Containers** | Docker CE, Docker Compose                       |
-| **Containers** | lazydocker, which has neither an apt nor a snap package |
+| **Containers** | Docker CE, Docker Compose, lazydocker |
 | **Databases**  | PostgreSQL client, Redis, MongoDB Shell, SQLite |
 | **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
 
@@ -679,6 +719,14 @@ This repository also makes use of and builds upon the following open-source proj
 - [lazygit](https://github.com/jesseduffield/lazygit) by Jesse Duffield
 - [delta](https://github.com/dandavison/delta) by Dan Davison
 - [k9s](https://k9scli.io/) by Fernand Galiana
+
+**Languages and toolchains**
+
+- [nvm](https://github.com/nvm-sh/nvm) by the nvm-sh contributors
+- [SDKMAN](https://sdkman.io/) by Marco Vermeulen
+- [Temurin](https://adoptium.net/) by the Eclipse Adoptium project
+- [pipx](https://github.com/pypa/pipx) by the PyPA
+- [ruff](https://github.com/astral-sh/ruff) by Astral
 
 **CLI tools**
 
