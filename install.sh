@@ -31,23 +31,38 @@ fi
 # JaKooLit's github     https://github.com/JaKooLit
 # Irichu's github       https://github.com/irichu
 
-clear
+# Only clear when there is a terminal to clear. clear needs TERM just as tput
+# does, and without one it writes to stderr, which is what broke CI.
+[ -t 1 ] && clear
 
-# Colors for output messages
-OK="$(tput setaf 2)[OK]$(tput sgr0)"
-ERROR="$(tput setaf 1)[ERROR]$(tput sgr0)"
-NOTE="$(tput setaf 3)[NOTE]$(tput sgr0)"
-INFO="$(tput setaf 4)[INFO]$(tput sgr0)"
-WARN="$(tput setaf 1)[WARN]$(tput sgr0)"
-CAT="$(tput setaf 6)[ACTION]$(tput sgr0)"
-MAGENTA="$(tput setaf 5)"
-ORANGE="$(tput setaf 214)"
-WARNING="$(tput setaf 1)"
-YELLOW="$(tput setaf 3)"
-GREEN="$(tput setaf 2)"
-BLUE="$(tput setaf 4)"
-SKY_BLUE="$(tput setaf 6)"
-RESET="$(tput sgr0)"
+# Colors for output messages.
+#
+# tput needs a usable TERM. Without one it writes an error to stderr for every
+# single call, which is noise in the log and enough to make `install.sh --help`
+# fail in CI, in cron, or through a pipe. Fall back to plain labels instead of
+# refusing to run without colour.
+if [ -n "${TERM:-}" ] && [ "$TERM" != "dumb" ] && tput setaf 1 > /dev/null 2>&1; then
+    _tput() { tput "$@" 2> /dev/null; }
+else
+    _tput() { :; }
+fi
+
+OK="$(_tput setaf 2)[OK]$(_tput sgr0)"
+ERROR="$(_tput setaf 1)[ERROR]$(_tput sgr0)"
+NOTE="$(_tput setaf 3)[NOTE]$(_tput sgr0)"
+INFO="$(_tput setaf 4)[INFO]$(_tput sgr0)"
+WARN="$(_tput setaf 1)[WARN]$(_tput sgr0)"
+CAT="$(_tput setaf 6)[ACTION]$(_tput sgr0)"
+MAGENTA="$(_tput setaf 5)"
+ORANGE="$(_tput setaf 214)"
+WARNING="$(_tput setaf 1)"
+YELLOW="$(_tput setaf 3)"
+GREEN="$(_tput setaf 2)"
+BLUE="$(_tput setaf 4)"
+SKY_BLUE="$(_tput setaf 6)"
+RESET="$(_tput sgr0)"
+
+unset -f _tput
 
 print_color() {
     printf "%b%s%b\n" "$1" "$2" "$RESET"
