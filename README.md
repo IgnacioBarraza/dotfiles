@@ -106,6 +106,7 @@ The setup includes:
 - **Pokémon ASCII art** on terminal startup, via fastfetch and pokeget
 - **Applications** for full-stack work, picked from a multi-select menu
 - **Language runtimes** through version managers, so a project can pin its own
+- **Docker** and a ready compose stack for Postgres, Redis and MongoDB
 
 > [!NOTE]
 > Language runtimes and services (Node, Python tooling, Java, Go, Docker, databases)
@@ -137,6 +138,8 @@ Your new development environment will include:
 | **🌐 Browser** | Brave, Google Chrome, or keep the Firefox that Ubuntu ships |
 | **🔍 Terminal tools** | lazygit, git-delta, k9s |
 | **📦 Languages** | Node via nvm, Python tooling via pipx, JVM via SDKMAN, Go |
+| **🐳 Containers** | Docker CE with compose and buildx, optional lazydocker |
+| **🛢️ Databases** | PostgreSQL, Redis, SQLite and MongoDB clients, DBeaver, pgAdmin, plus a compose stack |
 | **🔧 Git**            | user config, sane defaults, optional SSH key generation                |
 | **⌨️ Aliases**        | `ls`/`ll`/`la`/`lt` via eza, plus `bat` and `fd` (Ubuntu renames both) |
 
@@ -209,15 +212,16 @@ you want, so nothing lands on the machine just because it was on a list.
 
   Databases
      4) DBeaver Community      (snap)
+     5) pgAdmin 4              (apt, pgAdmin repo)
 
   Terminal tools
-     5) lazygit                (apt)
-     6) git-delta              (apt)
-     7) k9s                    (snap)
+     6) lazygit                (apt)
+     7) git-delta              (apt)
+     8) k9s                    (snap)
 
   Notes and chat
-     8) Obsidian               (snap)
-     9) Slack                  (snap)
+     9) Obsidian               (snap)
+    10) Slack                  (snap)
 
   Enter numbers separated by commas or spaces (for example: 1,3,5)
   Type 'all' for everything, or leave empty to skip.
@@ -230,7 +234,7 @@ the Firefox that Ubuntu already ships.
 
 | Method | Applications | Why |
 | :----- | :----------- | :-- |
-| apt, third-party repo | VS Code, Brave, Chrome | Upgrades with the rest of the system |
+| apt, third-party repo | VS Code, Brave, Chrome, pgAdmin | Upgrades with the rest of the system |
 | apt, Ubuntu archive | lazygit, git-delta | Already packaged |
 | snap | Postman, DBeaver, k9s, Obsidian, Slack | No apt repository exists for these |
 | tarball to `/opt` | JetBrains Toolbox | JetBrains publishes neither a repo nor a snap |
@@ -282,6 +286,71 @@ shell, so `nvm use` and `sdk use` work per project.
 > Python linting uses **ruff**, which covers what black and flake8 did between
 > them and runs far faster. `mypy` and `ipython` are installed alongside it.
 
+## 🐳 Containers and databases
+
+Docker comes from Docker's own repository, keyed by Ubuntu codename. The
+installer also adds you to the `docker` group.
+
+> [!IMPORTANT]
+> The `docker` group only takes effect on a **fresh login**. Until you log out
+> and back in, `docker ps` fails with permission denied. `newgrp docker` gives
+> the current shell the group without logging out.
+
+### Clients on the host, servers in a stack
+
+Database **clients** are installed on the host. The **servers** live in a
+compose stack, so nothing starts on boot and no ports are held unless you ask.
+
+```bash
+cd ~/dev-stack
+docker compose up -d                    # start the databases
+docker compose --profile tools up -d    # also start the web UIs
+docker compose ps                       # status
+docker compose down                     # stop, keeping the data
+docker compose down -v                  # stop and delete the volumes
+```
+
+| Service | Image | Address | Credentials |
+| :------ | :---- | :------ | :---------- |
+| Postgres | `postgres:18-alpine` | `127.0.0.1:5432` | `dev` / `dev`, database `dev` |
+| Redis | `redis:8-alpine` | `127.0.0.1:6379` | none |
+| MongoDB | `mongo:8` | `127.0.0.1:27017` | `dev` / `dev` |
+
+### Web UIs, behind the `tools` profile
+
+These are opt-in extras: a plain `up -d` starts three containers, not five.
+
+| UI | Image | Address | For |
+| :- | :---- | :------ | :-- |
+| Mongo Express | `mongo-express:1.0.2` | http://127.0.0.1:8081 | MongoDB |
+| RedisInsight | `redis/redisinsight:3.8` | http://127.0.0.1:5540 | Redis |
+
+Postgres is deliberately left out of them: DBeaver and pgAdmin already cover it
+natively, and both are in the [applications menu](#-applications).
+
+```bash
+docker compose --profile tools up -d
+```
+
+The port numbers come from what the images actually expose, not from their docs.
+CI enforces the `127.0.0.1` prefix on these too.
+
+```bash
+psql -h 127.0.0.1 -U dev -d dev
+redis-cli -h 127.0.0.1
+mongosh "mongodb://dev:dev@127.0.0.1:27017"
+```
+
+> [!WARNING]
+> Every port is published on `127.0.0.1` on purpose. Writing `5432:5432`
+> instead of `127.0.0.1:5432:5432` binds `0.0.0.0` and exposes these
+> databases, with their `dev`/`dev` credentials, to the whole network. CI
+> checks this, so a change that drops the host prefix fails the build.
+
+The stack is copied to `~/dev-stack/` so it can be edited without touching the
+cloned repository. The original lives at
+[config/docker/docker-compose.yml](config/docker/docker-compose.yml).
+
 ## 📁 Project Structure
 
 ```text
@@ -296,12 +365,15 @@ shell, so `nvm use` and `sdk use` work per project.
 │   ├── terminal_setup.sh     # Terminal, fonts, ZSH, Starship, fastfetch, Pokémon art
 │   ├── apps_setup.sh         # Browser and the application multi-select menu
 │   ├── languages_setup.sh    # Node, Python tooling, the JVM stack and Go
+│   ├── docker_setup.sh       # Docker CE, the docker group and lazydocker
+│   ├── databases_setup.sh    # Database clients and the compose stack
 │   └── validate.sh           # Static checks, also run by CI
 ├── config/
 │   ├── kitty/                # Modular config + themes/, theme.conf is a symlink
 │   ├── alacritty/            # Same layout, themes generated from the Kitty ones
 │   ├── starship/             # Prompt
 │   ├── fastfetch/            # System info layout
+│   ├── docker/               # Example compose stack for local databases
 │   └── bin/                  # Scripts installed into ~/.local/bin
 └── .github/workflows/ci.yml  # Runs scripts/validate.sh on every push and PR
 ```
@@ -539,6 +611,16 @@ rm -rf ~/.zshrc ~/.oh-my-zsh ~/.config/starship.toml \
        ~/.config/kitty ~/.config/alacritty ~/.config/fastfetch
 rm -f ~/.local/bin/pokemon.sh ~/.cache/pokemon-fetch-height
 
+# Stop and remove the compose stack, including its data volumes
+cd ~/dev-stack && docker compose down -v && cd - && rm -rf ~/dev-stack
+
+# Remove Docker
+sudo apt remove --purge docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin
+sudo rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.gpg
+sudo groupdel docker
+rm -f ~/.local/bin/lazydocker
+
 # Remove language toolchains
 rm -rf ~/.nvm ~/.sdkman
 pipx uninstall-all
@@ -650,8 +732,6 @@ Planned, not implemented yet. The installer does **not** touch any of these:
 
 | Area           | Planned                                         |
 | :------------- | :---------------------------------------------- |
-| **Containers** | Docker CE, Docker Compose, lazydocker |
-| **Databases**  | PostgreSQL client, Redis, MongoDB Shell, SQLite |
 | **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
 
 ## ✅ Validating changes
@@ -719,6 +799,16 @@ This repository also makes use of and builds upon the following open-source proj
 - [lazygit](https://github.com/jesseduffield/lazygit) by Jesse Duffield
 - [delta](https://github.com/dandavison/delta) by Dan Davison
 - [k9s](https://k9scli.io/) by Fernand Galiana
+
+**Containers and databases**
+
+- [Docker](https://www.docker.com/) by Docker, Inc.
+- [lazydocker](https://github.com/jesseduffield/lazydocker) by Jesse Duffield
+- [pgAdmin](https://www.pgadmin.org/) by the pgAdmin Development Team
+- [Mongo Express](https://github.com/mongo-express/mongo-express) by the mongo-express contributors
+- [RedisInsight](https://redis.io/insight/) by Redis
+- [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/),
+  [MongoDB](https://www.mongodb.com/) and [SQLite](https://sqlite.org/)
 
 **Languages and toolchains**
 

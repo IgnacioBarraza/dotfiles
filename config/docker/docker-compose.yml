@@ -1,0 +1,115 @@
+# ============================================================================
+# Module: Development database stack
+# Project: Dotfiles
+# ----------------------------------------------------------------------------
+# Postgres, Redis and MongoDB for local development.
+#
+# The installer puts the database CLIENTS on the host and leaves the SERVERS
+# here, so nothing starts on boot and no ports are held unless you ask for it.
+#
+#   docker compose up -d                    start the databases
+#   docker compose --profile tools up -d    also start the web UIs
+#   docker compose ps                       status
+#   docker compose logs -f redis            follow one service
+#   docker compose down                     stop, keeping the data
+#   docker compose down -v                  stop and delete the volumes
+#
+# The web UIs sit behind the "tools" profile, so a plain `up -d` starts three
+# containers rather than five. Postgres is left out of them on purpose: DBeaver
+# and pgAdmin already cover it natively.
+#
+# Every port is published on 127.0.0.1 on purpose. Writing "5432:5432" instead
+# would bind 0.0.0.0 and expose these databases, with development credentials,
+# to every machine on the network.
+#
+# Credentials are deliberately trivial. Do not reuse this file for anything
+# reachable from outside this machine.
+# ============================================================================
+
+name: dev-stack
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: dev-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:8
+    container_name: dev-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: dev
+      MONGO_INITDB_ROOT_PASSWORD: dev
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Web UIs, only with --profile tools ----
+
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    container_name: dev-mongo-express
+    profiles: [tools]
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://dev:dev@mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  redisinsight:
+    image: redis/redisinsight:3.8
+    container_name: dev-redisinsight
+    profiles: [tools]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5540:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
+  mongo-data:
+  redisinsight-data:

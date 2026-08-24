@@ -24,6 +24,7 @@ APPS=(
     "Editors and IDEs|JetBrains Toolbox|tarball to /opt|install_jetbrains_toolbox"
     "API clients|Postman|snap|install_postman"
     "Databases|DBeaver Community|snap|install_dbeaver"
+    "Databases|pgAdmin 4|apt, pgAdmin repo|install_pgadmin"
     "Terminal tools|lazygit|apt|install_lazygit"
     "Terminal tools|git-delta|apt|install_git_delta"
     "Terminal tools|k9s|snap|install_k9s"
@@ -253,6 +254,30 @@ install_postman() {
 
 install_dbeaver() {
     snap_install dbeaver-ce
+}
+
+# The -desktop package alone: the pgadmin4 metapackage also pulls -web, which
+# drags in Apache to serve a UI that duplicates the desktop one.
+install_pgadmin() {
+    if pkg_installed pgadmin4-desktop; then
+        log_success "pgAdmin 4 is already installed"
+        return 0
+    fi
+
+    local codename
+    codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+
+    if [ -z "$codename" ]; then
+        log_error "Could not determine the Ubuntu codename from /etc/os-release"
+        return 1
+    fi
+
+    add_apt_repo "pgadmin4" \
+        "https://www.pgadmin.org/static/packages_pgadmin_org.pub" \
+        "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/${codename}" \
+        "pgadmin4" || return 1
+
+    run_logged sudo apt install -y pgadmin4-desktop
 }
 
 install_lazygit() {

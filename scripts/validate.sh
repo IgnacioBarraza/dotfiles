@@ -127,6 +127,63 @@ else
     fail "see findings above"
 fi
 
+head_ "Compose stack"
+python3 - "$REPO_DIR" <<'COMPOSE_EOF' && pass "compose stack parses, every port bound to 127.0.0.1" || fail "see findings above"
+import os, re, sys
+
+repo = sys.argv[1]
+path = os.path.join(repo, "config/docker/docker-compose.yml")
+
+if not os.path.exists(path):
+    print("    no compose stack in the repo, nothing to check")
+    sys.exit(0)
+
+try:
+    import yaml
+except ImportError:
+    # Without PyYAML, still enforce the property that matters: a published port
+    # with no explicit host is bound to 0.0.0.0 and exposes the database.
+    ok = True
+    for n, line in enumerate(open(path), 1):
+        m = re.match(r'\s*-\s*"([^"]+)"\s*$', line)
+        if m and re.match(r"^\d+:\d+$", m.group(1)):
+            print(f"    line {n}: port {m.group(1)} has no host, which binds 0.0.0.0")
+            ok = False
+    print("    PyYAML missing, checked ports only")
+    sys.exit(0 if ok else 1)
+
+data = yaml.safe_load(open(path))
+ok = True
+
+services = data.get("services") or {}
+
+# Anything another service waits on with condition: service_healthy has to
+# have a healthcheck, or compose refuses to start the stack.
+depended_on = set()
+for svc in services.values():
+    dep = svc.get("depends_on")
+    if isinstance(dep, dict):
+        depended_on.update(dep)
+    elif isinstance(dep, list):
+        depended_on.update(dep)
+
+for name, svc in services.items():
+    # The port rule applies everywhere: a bare "5432:5432" binds 0.0.0.0.
+    for port in svc.get("ports", []):
+        if not str(port).startswith("127.0.0.1:"):
+            print(f"    {name}: port {port} is not bound to 127.0.0.1")
+            ok = False
+
+    # Services behind a profile are opt-in extras that nothing waits on, so a
+    # healthcheck is optional for them.
+    needs_health = name in depended_on or not svc.get("profiles")
+    if needs_health and not svc.get("healthcheck"):
+        print(f"    {name}: no healthcheck")
+        ok = False
+
+sys.exit(0 if ok else 1)
+COMPOSE_EOF
+
 head_ "Theme symlinks"
 for link in config/kitty/theme.conf config/alacritty/theme.toml; do
     if [ -L "$link" ] && [ -e "$link" ]; then

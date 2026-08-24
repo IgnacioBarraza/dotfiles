@@ -103,6 +103,9 @@ Please keep the repository organized.
 - `scripts/utils.sh` → Shared helpers, use these instead of re-implementing them
 - `scripts/apps_setup.sh` → Browser and the application multi-select menu
 - `scripts/languages_setup.sh` → Language runtimes and their tooling
+- `scripts/docker_setup.sh` → Docker CE, the docker group and lazydocker
+- `scripts/databases_setup.sh` → Database clients and the compose stack
+- `config/docker/` → Example compose stack for local databases
 - `scripts/validate.sh` → Static checks, also run by CI
 - `scripts/check_glyphs.py` → Verifies no glyph was lost and every one has a font
 - `config/` → Configuration files, mirrored into `~/.config`
@@ -145,6 +148,11 @@ Whenever possible:
   the numbering and the summary all derive from that array.
 - Prefer the ecosystem's own version manager (nvm, SDKMAN) over apt when a
   project might need to pin a version.
+- Publish compose ports on `127.0.0.1` explicitly. A bare `5432:5432` binds
+  `0.0.0.0` and exposes the service; CI rejects it.
+- Put optional compose services behind a profile, so a plain `up -d` stays
+  small. Anything another service waits on with `condition: service_healthy`
+  needs a `healthcheck`; CI checks that too.
 - Register third-party apt repositories with `add_apt_repo`, never by hand:
   it uses deb822 format, puts the key in `/etc/apt/keyrings/` and declares
   only the host architecture.
