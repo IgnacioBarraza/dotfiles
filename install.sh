@@ -75,7 +75,7 @@ print_info() {
     Usage: ./install.sh [option]
 
     Option:
-    • --desktop     Run only the desktop theme step
+    • --desktop     Run only the desktop theme and login screen steps
     • --dry-run     Print what would be done and exit (non-interactive)
     • -h, --help    Show this message and exit
 
@@ -104,6 +104,7 @@ source "$DOTFILES_DIR/scripts/docker_setup.sh"
 source "$DOTFILES_DIR/scripts/databases_setup.sh"
 source "$DOTFILES_DIR/scripts/caelestia_setup.sh"
 source "$DOTFILES_DIR/scripts/desktop_setup.sh"
+source "$DOTFILES_DIR/scripts/login_setup.sh"
 
 DO_DRY_RUN=0
 DO_DESKTOP_ONLY=0
@@ -156,6 +157,7 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Install Docker CE, add you to the docker group, optional lazydocker"
     print_color $GREEN "  ✓ Install database clients and the example compose stack"
     print_color $GREEN "  ✓ Theme the desktop: the Nach0_0 Plasma theme or the Caelestia shell"
+    print_color $GREEN "  ✓ Theme the SDDM login screen with the same generated palette"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
     print_color $INFO "[DRY-RUN] Run without --dry-run to proceed with installation."
@@ -184,6 +186,7 @@ print_color $WARNING "
         - Docker CE with compose, and optionally lazydocker
         - Database clients, with the servers left to a compose stack
         - A desktop theme: the Nach0_0 Plasma theme or the Caelestia shell
+        - The SDDM login screen, themed from the same palette
     - Database servers run in a compose stack, not on the host
     - To know what it's being installed, check the README.md
     - Use at your own risk!
@@ -244,6 +247,7 @@ fi
 
 if [ "$DO_DESKTOP_ONLY" = "1" ]; then
     setup_desktop
+    setup_login_screen
     print_post_install_summary
     exit 0
 fi
@@ -274,6 +278,9 @@ setup_databases
 
 # Theme the desktop
 setup_desktop
+
+# Theme the login screen
+setup_login_screen
 
 
 log_info "Performing final system cleanup..."
