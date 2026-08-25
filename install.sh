@@ -75,6 +75,7 @@ print_info() {
     Usage: ./install.sh [option]
 
     Option:
+    • --desktop     Run only the desktop theme step
     • --dry-run     Print what would be done and exit (non-interactive)
     • -h, --help    Show this message and exit
 
@@ -101,8 +102,11 @@ source "$DOTFILES_DIR/scripts/apps_setup.sh"
 source "$DOTFILES_DIR/scripts/languages_setup.sh"
 source "$DOTFILES_DIR/scripts/docker_setup.sh"
 source "$DOTFILES_DIR/scripts/databases_setup.sh"
+source "$DOTFILES_DIR/scripts/caelestia_setup.sh"
+source "$DOTFILES_DIR/scripts/desktop_setup.sh"
 
 DO_DRY_RUN=0
+DO_DESKTOP_ONLY=0
 SHOW_HELP=0
 
 for arg in "$@"; do
@@ -112,6 +116,9 @@ for arg in "$@"; do
         ;;
     --dry-run)
         DO_DRY_RUN=1
+        ;;
+    --desktop)
+        DO_DESKTOP_ONLY=1
         ;;
     esac
 done
@@ -148,12 +155,14 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "    JDK/Maven/Gradle via SDKMAN, Go (multi-select)"
     print_color $GREEN "  ✓ Install Docker CE, add you to the docker group, optional lazydocker"
     print_color $GREEN "  ✓ Install database clients and the example compose stack"
+    print_color $GREEN "  ✓ Theme the desktop: the Nach0_0 Plasma theme or the Caelestia shell"
     echo ""
     print_color $NOTE "[DRY-RUN] No changes were made to your system."
     print_color $INFO "[DRY-RUN] Run without --dry-run to proceed with installation."
     exit 0
 fi
 
+if [ "$DO_DESKTOP_ONLY" != "1" ]; then
 echo -e "\n\n"
 print_color $WARNING "
     █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -174,6 +183,7 @@ print_color $WARNING "
         - Languages: Node (nvm), Python tooling (pipx), JVM (SDKMAN), Go
         - Docker CE with compose, and optionally lazydocker
         - Database clients, with the servers left to a compose stack
+        - A desktop theme: the Nach0_0 Plasma theme or the Caelestia shell
     - Database servers run in a compose stack, not on the host
     - To know what it's being installed, check the README.md
     - Use at your own risk!
@@ -196,6 +206,7 @@ case "$confirm" in
     exit 1
     ;;
 esac
+fi
 
 # Check ubuntu version
 if ! grep -q "Ubuntu 26.04" /etc/os-release; then
@@ -231,6 +242,12 @@ else
     log_success "Write permissions verified in: $(pwd)"
 fi
 
+if [ "$DO_DESKTOP_ONLY" = "1" ]; then
+    setup_desktop
+    print_post_install_summary
+    exit 0
+fi
+
 # Install base packages
 install_base_packages || {
     log_error "Base packages installation failed."
@@ -254,6 +271,9 @@ setup_docker
 
 # Install database clients and the example compose stack
 setup_databases
+
+# Theme the desktop
+setup_desktop
 
 
 log_info "Performing final system cleanup..."

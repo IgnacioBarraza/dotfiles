@@ -6,6 +6,10 @@
 #
 # This script themes the KDE Plasma desktop.
 #
+# Caelestia is offered here as the alternative, and lives in
+# caelestia_setup.sh. Picking it hands over entirely: it replaces the Plasma
+# shell rather than theming it, so nothing below runs.
+#
 # The colour schemes are generated from the Kitty themes by
 # scripts/generate_kde_colors.py, so the desktop and the terminal cannot drift
 # apart. See config/kde/.
@@ -18,8 +22,8 @@
 #   - install_papirus_icons: Install the icon theme
 #   - install_theme_switcher: Install the plasma-theme helper
 #   - install_wallpapers: Copy the generated wallpapers and the rotator
-#   - install_wallpaper_shortcut: Bind Meta+W to the rotator
-#   - install_wallpaper_menu: Grid picker on Meta+Shift+W
+#   - install_wallpaper_shortcut: Bind Meta+K to the rotator
+#   - install_wallpaper_menu: Grid picker on Meta+Shift+K
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_error, log_warning)
@@ -39,6 +43,34 @@ setup_desktop() {
         log_warning "No KDE configuration found at config/kde/, skipping"
         return 0
     fi
+
+    # Everything below writes to Plasma's own configuration. On GNOME, which is
+    # what Ubuntu ships by default, none of it has any effect.
+    if ! command -v kwriteconfig6 &> /dev/null; then
+        log_info "KDE Plasma not detected, skipping the desktop theme"
+        return 0
+    fi
+
+    log_info "Select a desktop theme"
+    echo ""
+    echo "  1) Nach0_0 (Plasma theming: colours, fonts, icons, wallpapers)"
+    echo "  2) Caelestia (replaces the Plasma shell with a Quickshell one)"
+    echo "  3) Skip"
+    echo ""
+
+    read -rp "Enter your choice [1|2|3]: " choice
+
+    case "$choice" in
+    1) ;;
+    2)
+        install_caelestia
+        return $?
+        ;;
+    *)
+        log_info "Skipping the desktop theme"
+        return 0
+        ;;
+    esac
 
     install_kde_color_schemes
 
@@ -252,6 +284,42 @@ shortcut_is_free() {
     return 0
 }
 
+# Drop a [services][<desktop>] block from kglobalshortcutsrc.
+#
+# kglobalaccel builds a component per group it finds there. For a group whose
+# desktop file it has not yet scanned, that component is created with nothing
+# behind it, and an empty component never grabs its keys. The stale group then
+# shadows the real one for the rest of the session. Earlier versions of this
+# script wrote such a group, so clear it out before it can do that again.
+drop_shortcut_group() {
+    local desktop="$1"
+    local rc="$HOME/.config/kglobalshortcutsrc"
+
+    [ -f "$rc" ] || return 0
+    grep -qF "[services][$desktop]" "$rc" 2>/dev/null || return 0
+
+    local tmp
+    tmp="$(mktemp)" || return 1
+
+    awk -v header="[services][$desktop]" '
+        /^\[/ { drop = ($0 == header) }
+        !drop
+    ' "$rc" > "$tmp" && mv "$tmp" "$rc" || {
+        rm -f "$tmp"
+        return 1
+    }
+}
+
+# Bind a key combination to a desktop entry.
+#
+# The binding itself lives in the desktop file, as X-KDE-Shortcuts. That is how
+# Plasma's own entries do it, and it is the only form kglobalaccel turns into a
+# working grab: it scans the service cache at session start and registers what
+# it finds. Writing the combination into kglobalshortcutsrc instead produces an
+# entry that System Settings displays but no key press ever reaches.
+#
+# Nothing here takes effect until the next login, because the scan only runs
+# when the session starts.
 bind_shortcut() {
     local desktop="$1"
     local combo="$2"
@@ -263,19 +331,17 @@ bind_shortcut() {
         return 1
     fi
 
-    kwriteconfig6 --file kglobalshortcutsrc \
-        --group "services" --group "$desktop" \
-        --key "_launch" "$combo,none,$description" || return 1
-
-    # kglobalaccel discovers entries through the service cache, so a new
-    # desktop file is invisible until the cache is rebuilt.
-    if command -v kbuildsycoca6 &> /dev/null; then
-        kbuildsycoca6 > /dev/null 2>&1 || true
+    if ! grep -qF "X-KDE-Shortcuts=$combo" \
+        "$HOME/.local/share/applications/$desktop" 2>/dev/null; then
+        log_warning "$desktop does not declare X-KDE-Shortcuts=$combo"
+        return 1
     fi
 
-    if command -v qdbus6 &> /dev/null; then
-        qdbus6 org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel.reloadConfig \
-            > /dev/null 2>&1 || true
+    drop_shortcut_group "$desktop"
+
+    # A desktop file is invisible to kglobalaccel until the cache is rebuilt.
+    if command -v kbuildsycoca6 &> /dev/null; then
+        kbuildsycoca6 > /dev/null 2>&1 || true
     fi
 
     log_success "$combo bound to $description"
@@ -603,9 +669,8 @@ install_wallpaper_shortcut() {
 
     mkdir -p "$desktop_dir"
 
-    # X-KDE-Shortcuts is what makes kglobalaccel register the entry at all.
-    # Writing the binding into kglobalshortcutsrc alone leaves it unregistered
-    # and the key does nothing.
+    # X-KDE-Shortcuts is the binding. See bind_shortcut for why it does not
+    # also go into kglobalshortcutsrc.
     cat > "$desktop_file" <<DESKTOP
 [Desktop Entry]
 Type=Application
@@ -618,17 +683,12 @@ NoDisplay=true
 X-KDE-Shortcuts=Meta+K
 DESKTOP
 
-    if ! command -v kwriteconfig6 &> /dev/null; then
-        log_warning "kwriteconfig6 not found, bind the shortcut by hand"
-        return 0
-    fi
-
     backup_file "$HOME/.config/kglobalshortcutsrc"
 
     # K for 壁紙 (kabegami, wallpaper). Meta+W is KWin's Overview.
     bind_shortcut "dotfiles-wallpaper-next.desktop" "Meta+K" "Next Wallpaper"
 
-    add_post_install_note "Meta+K cycles the wallpaper, Meta+Shift+K opens the picker. Directories are listed in ~/.config/dotfiles-wallpapers.conf"
+    add_post_install_note "Log out and back in to activate Meta+K (cycle wallpaper) and Meta+Shift+K (picker). Plasma only registers new shortcuts when a session starts. Directories are listed in ~/.config/dotfiles-wallpapers.conf"
 }
 
 # A floating grid of wallpaper thumbnails, the way the Hyprland setups do it.

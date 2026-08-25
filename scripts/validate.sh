@@ -73,7 +73,7 @@ done
 # then the function it was supposed to define is simply not there.
 missing=""
 for fn in init_logging install_base_packages configure_git setup_terminal \
-          setup_apps setup_languages setup_docker setup_databases; do
+          setup_apps setup_languages setup_docker setup_databases setup_desktop install_caelestia; do
     if ! bash -c "
         DOTFILES_DIR='$REPO_DIR'
         for f in \"\$DOTFILES_DIR\"/scripts/*.sh; do
