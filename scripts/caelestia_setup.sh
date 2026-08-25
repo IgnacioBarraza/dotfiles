@@ -15,7 +15,8 @@
 #   - install_caelestia: Main function
 #   - caelestia_preflight: Check the session can host it
 #   - fetch_caelestia: Clone or update the checkout
-#   - fix_caelestia_lockscreen: Give the lock greeter its QML import path
+#   - install_caelestia_fixups: Install the patches that updates undo
+#   - remove_wallpaper_shortcuts: Hand the wallpaper over to Caelestia
 #   - restore_terminal_configs: Put this repo's terminal theme back
 #
 # Dependencies:
@@ -77,7 +78,9 @@ NOTICE
 
     log_success "Caelestia installed"
 
-    fix_caelestia_lockscreen
+    install_caelestia_fixups
+
+    remove_wallpaper_shortcuts
 
     restore_terminal_configs
 
@@ -132,42 +135,117 @@ fetch_caelestia() {
     log_success "Caelestia cloned to $CAELESTIA_DIR"
 }
 
-# The lock screen runs quickshell straight from kscreenlockerrc, which is the
-# one path that goes through none of Caelestia's wrappers. Those wrappers are
-# what export QML2_IMPORT_PATH, so without it the greeter cannot resolve the
-# Caelestia.* QML modules under ~/.local/lib/qt6/qml and Meta+L dies with
-# 'module "Caelestia.Config" is not installed'.
+# Two things this repo fixes in Caelestia are undone by every update, so they
+# are installed as a script that can be re-run rather than applied once:
 #
-# The wallpaper plugin builds its command by prefixing variable assignments and
-# handing the string to a shell, so one more assignment rides along fine.
-fix_caelestia_lockscreen() {
-    local group_args=(
-        --group "Greeter" --group "Wallpaper"
-        --group "net.dosowisko.PlasmaApplicationWallpaper" --group "General"
-    )
-    local current
+#   - 08-build-shell.sh rewrites kscreenlockerrc with a bare `quickshell`
+#     command. Only Caelestia's wrappers export QML2_IMPORT_PATH, so the lock
+#     greeter cannot resolve the Caelestia.* QML modules and Meta+L dies with
+#     'module "Caelestia.Config" is not installed'.
+#
+#   - The terminal shortcut hardcodes foot instead of reading
+#     general.apps.terminal, which every other caller of that setting uses.
+#     The shell is installed with cmake, which overwrites the file outright.
+#
+# A path unit watches .current_commit, which the build script rewrites when it
+# finishes, so the patches go back on by themselves after an update.
+install_caelestia_fixups() {
+    local target="$HOME/.local/bin/caelestia-fixups"
+    local units="$HOME/.config/systemd/user"
 
-    command -v kreadconfig6 &> /dev/null || return 0
-    command -v kwriteconfig6 &> /dev/null || return 0
+    mkdir -p "$HOME/.local/bin" "$units"
 
-    current="$(kreadconfig6 --file kscreenlockerrc "${group_args[@]}" --key command 2>/dev/null)"
+    cat > "$target" <<'FIXUPS'
+#!/bin/bash
+# Re-apply the dotfiles patches to Caelestia. Safe to run at any time.
+# Installed by the dotfiles; see scripts/caelestia_setup.sh.
 
-    # Nothing to do when the lock screen is not Caelestia's, or when a later
-    # version has already set the path itself.
+set -u
+
+shortcuts="$HOME/.config/quickshell/caelestia/modules/Shortcuts.qml"
+lock_groups=(
+    --group "Greeter" --group "Wallpaper"
+    --group "net.dosowisko.PlasmaApplicationWallpaper" --group "General"
+)
+
+if command -v kreadconfig6 > /dev/null 2>&1 && command -v kwriteconfig6 > /dev/null 2>&1; then
+    current="$(kreadconfig6 --file kscreenlockerrc "${lock_groups[@]}" --key command 2>/dev/null)"
+
     case "$current" in
-    "" | *QML2_IMPORT_PATH*) return 0 ;;
-    quickshell*) ;;
-    *) return 0 ;;
+    quickshell*)
+        kwriteconfig6 --file kscreenlockerrc "${lock_groups[@]}" \
+            --key command "QML2_IMPORT_PATH=$HOME/.local/lib/qt6/qml $current" &&
+            echo "lock screen: QML import path restored"
+        ;;
     esac
+fi
 
-    backup_file "$HOME/.config/kscreenlockerrc"
+if [ -f "$shortcuts" ] && grep -qF '"kstart", "--", "foot"' "$shortcuts"; then
+    sed -i 's|\["kstart", "--", "foot"\]|["kstart", "--", ...GlobalConfig.general.apps.terminal]|' "$shortcuts" &&
+        echo "terminal shortcut: now follows general.apps.terminal"
+fi
+FIXUPS
 
-    if kwriteconfig6 --file kscreenlockerrc "${group_args[@]}" \
-        --key command "QML2_IMPORT_PATH=$HOME/.local/lib/qt6/qml $current"; then
-        log_success "Lock screen QML import path set"
-    else
-        log_warning "Could not set the lock screen QML import path, Meta+L may fail"
+    chmod +x "$target"
+
+    cat > "$units/caelestia-fixups.service" <<'UNIT'
+[Unit]
+Description=Re-apply the dotfiles patches to Caelestia
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/caelestia-fixups
+UNIT
+
+    cat > "$units/caelestia-fixups.path" <<'UNIT'
+[Unit]
+Description=Watch for Caelestia updates
+
+[Path]
+PathChanged=%h/.config/quickshell/caelestia/.current_commit
+Unit=caelestia-fixups.service
+
+[Install]
+WantedBy=default.target
+UNIT
+
+    if command -v systemctl &> /dev/null; then
+        systemctl --user daemon-reload > /dev/null 2>&1 || true
+        systemctl --user enable --now caelestia-fixups.path > /dev/null 2>&1 ||
+            log_warning "Could not enable caelestia-fixups.path, run the script by hand after updates"
     fi
+
+    run_logged "$target"
+
+    log_success "Caelestia fixups installed and armed"
+}
+
+# Caelestia owns the wallpaper once it is installed: it derives the colour
+# scheme from it and asks that Plasma's wallpaper manager be left alone. Our
+# Meta+K shortcuts do exactly what it asks not to, so they go. The rotator and
+# the wallpapers themselves stay, and Caelestia picks the images up from
+# ~/Pictures/Wallpapers on its own.
+remove_wallpaper_shortcuts() {
+    local desktop_dir="$HOME/.local/share/applications"
+    local removed=0
+    local name
+
+    for name in dotfiles-wallpaper-next dotfiles-wallpaper-menu; do
+        if [ -f "$desktop_dir/$name.desktop" ]; then
+            rm -f "$desktop_dir/$name.desktop" && removed=$((removed + 1))
+        fi
+
+        # Older versions of this repo also wrote the binding into the config.
+        if declare -F drop_shortcut_group > /dev/null; then
+            drop_shortcut_group "$name.desktop"
+        fi
+    done
+
+    [ "$removed" -eq 0 ] && return 0
+
+    command -v kbuildsycoca6 &> /dev/null && kbuildsycoca6 > /dev/null 2>&1
+
+    log_info "Meta+K removed, Caelestia handles wallpapers (Meta+Ctrl+T)"
 }
 
 # Caelestia deploys its own kitty, starship, fastfetch and btop configurations.
