@@ -24,6 +24,10 @@
 #   - install_wallpapers: Copy the generated wallpapers and the rotator
 #   - install_wallpaper_shortcut: Bind Meta+K to the rotator
 #   - install_wallpaper_menu: Grid picker on Meta+Shift+K
+#   - install_desktop_switcher: The desktop-mode command
+#   - install_panel: Create the floating panel
+#   - apply_window_decoration: Darkly if present, Breeze otherwise
+#   - setup_krunner: KRunner plugin, lives in krunner_setup.sh
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_error, log_warning)
@@ -34,7 +38,11 @@
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 KDE_SCHEME_DIR="$HOME/.local/share/color-schemes"
-DEFAULT_KDE_SCHEME="Sakura"
+# Kanagawa rather than Sakura: Sakura's accent is a gold, and Plasma paints
+# the accent on the active task in the panel, where a gold badge reads as an
+# unread notification. Kanagawa's is a blue and does not.
+DEFAULT_KDE_SCHEME="Kanagawa"
+DEFAULT_KDE_THEME="kanagawa"
 
 setup_desktop() {
     log_info "Starting desktop setup"
@@ -50,6 +58,8 @@ setup_desktop() {
         log_info "KDE Plasma not detected, skipping the desktop theme"
         return 0
     fi
+
+    install_desktop_switcher
 
     log_info "Select a desktop theme"
     echo ""
@@ -86,7 +96,366 @@ setup_desktop() {
 
     install_wallpaper_menu
 
+    install_panel
+
+    apply_window_decoration
+
+    setup_krunner
+
+    apply_palette_settings
+
     log_success "Desktop setup completed"
+}
+
+# Caelestia and the Plasma theme cannot both be live: Caelestia's bar would sit
+# on top of our panel, and its colour daemon rewrites the palette we just set.
+# Neither installer turns the other off, so this switches between them.
+install_desktop_switcher() {
+    local target="$HOME/.local/bin/desktop-mode"
+
+    mkdir -p "$HOME/.local/bin"
+
+    cat > "$target" <<'SWITCH'
+#!/bin/bash
+# Switch between the Caelestia shell and the Plasma theme.
+# Installed by the dotfiles; see scripts/desktop_setup.sh.
+
+set -u
+
+AUTOSTART="$HOME/.config/autostart/caelestiashell.desktop"
+APPS="$HOME/.local/share/applications"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles-desktop-mode"
+LOCK_GROUPS=(--group Greeter --group Wallpaper
+             --group net.dosowisko.PlasmaApplicationWallpaper --group General)
+
+usage() {
+    echo "Usage: desktop-mode [caelestia|plasma|status]"
+    echo ""
+    echo "  caelestia  the Quickshell desktop"
+    echo "  plasma     the themed Plasma desktop"
+    echo "  status     print which one is active"
+    exit "${1:-0}"
+}
+
+evaluate() {
+    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$1" 2>/dev/null
+}
+
+# Prints the panel count, or nothing when plasmashell will not answer. Keeping
+# those two apart is the whole point: the first version compared the raw query
+# to "0", so an unanswered query read as "a panel already exists" and it
+# skipped creating one without a word. plasmashell is briefly unreachable right
+# after the Caelestia shell is killed, which is exactly when this is asked.
+panel_count() {
+    local count attempt
+
+    for attempt in 1 2 3 4 5; do
+        count="$(evaluate 'print(panels().length)')"
+        case "$count" in
+        "" | *[!0-9]*) sleep 1 ;;
+        *)
+            echo "$count"
+            return 0
+            ;;
+        esac
+    done
+
+    return 1
+}
+
+# Hidden=true is the freedesktop way of saying "deleted for this user". It
+# takes the shortcut out of the service database without losing the file, so
+# switching back does not have to rebuild it.
+set_hidden() {
+    [ -f "$1" ] || return 0
+    kwriteconfig6 --file "$1" --group "Desktop Entry" --key Hidden "$2"
+}
+
+# Caelestia does not ask KWin to share Alt+Tab, Meta+Tab, Meta+W and the
+# desktop switching keys: it empties them. Its own stolen-shortcuts.json is
+# meant to record what it took so it can hand them back, and it stays empty, so
+# nothing gives them back on the way out.
+#
+# An entry is active,default,description. The description can hold commas of
+# its own, so only the first two fields are split off, and alternatives within
+# a field are separated by a literal \t.
+#
+# The rule is: restore when what is active is a strict subset of what the entry
+# declares as its default. That catches an entry emptied outright ("\t"), one
+# left half-cleared ("Meta+Shift+Tab\t") and one set to "none", while leaving a
+# binding the user actually chose alone, since that is not a subset.
+restore_kwin_shortcuts() {
+    local rc="$HOME/.config/kglobalshortcutsrc"
+    local tmp count
+
+    [ -f "$rc" ] || return 0
+    tmp="$(mktemp)" || return 1
+
+    awk '
+    function slots(spec, out,   n, i, parts, kept) {
+        n = split(spec, parts, "\\\\t")
+        kept = 0
+        for (i = 1; i <= n; i++) {
+            if (parts[i] != "" && parts[i] != "none") {
+                out[parts[i]] = 1
+                kept++
+            }
+        }
+        return kept
+    }
+    /^\[/ { inkwin = ($0 == "[kwin]") }
+    {
+        if (!inkwin || $0 !~ /=/) { print; next }
+
+        eq = index($0, "=")
+        key = substr($0, 1, eq)
+        rest = substr($0, eq + 1)
+
+        c1 = index(rest, ",")
+        if (!c1) { print; next }
+        active = substr(rest, 1, c1 - 1)
+        tail = substr(rest, c1 + 1)
+
+        c2 = index(tail, ",")
+        if (!c2) { print; next }
+        fallback = substr(tail, 1, c2 - 1)
+        desc = substr(tail, c2 + 1)
+
+        delete A; delete D
+        na = slots(active, A)
+        nd = slots(fallback, D)
+
+        subset = (na < nd)
+        for (k in A) { if (!(k in D)) subset = 0 }
+
+        if (subset && nd > 0) {
+            printf "%s%s,%s,%s\n", key, fallback, fallback, desc
+            restored++
+        } else {
+            print
+        }
+    }
+    END { printf("%d", restored) > "/dev/stderr" }
+    ' "$rc" > "$tmp" 2> "$tmp.count"
+
+    if [ -s "$tmp" ]; then
+        mv "$tmp" "$rc"
+        count="$(cat "$tmp.count" 2>/dev/null)"
+        [ "${count:-0}" -gt 0 ] &&
+            echo "Restored $count KWin shortcuts (Alt+Tab, Meta+W, desktops)"
+    fi
+
+    rm -f "$tmp" "$tmp.count"
+}
+
+rebuild_cache() {
+    command -v kbuildsycoca6 > /dev/null 2>&1 && kbuildsycoca6 > /dev/null 2>&1
+}
+
+unit() {
+    systemctl --user "$1" "$2" > /dev/null 2>&1 || true
+}
+
+to_caelestia() {
+    echo "Switching to Caelestia..."
+
+    evaluate 'panels().forEach(function (p) { p.remove(); })' > /dev/null
+
+    set_hidden "$APPS/dotfiles-wallpaper-next.desktop" true
+    set_hidden "$APPS/dotfiles-wallpaper-menu.desktop" true
+    unit disable dotfiles-runner.service
+    unit stop dotfiles-runner.service
+
+    set_hidden "$AUTOSTART" false
+    unit enable kde-material-you-colors.service
+    unit start kde-material-you-colors.service
+
+    # Its lock screen runs quickshell, which needs the import path its own
+    # installer leaves out. See caelestia-fixups.
+    if [ -f "$HOME/.config/quickshell/caelestia/lockscreen.qml" ]; then
+        kwriteconfig6 --file kscreenlockerrc --group Greeter             --key WallpaperPlugin net.dosowisko.PlasmaApplicationWallpaper
+        kwriteconfig6 --file kscreenlockerrc "${LOCK_GROUPS[@]}" --key command             "QML2_IMPORT_PATH=$HOME/.local/lib/qt6/qml quickshell -p $HOME/.config/quickshell/caelestia/lockscreen.qml"
+    fi
+
+    rebuild_cache
+    command -v caelestia > /dev/null 2>&1 && caelestia shell -d > /dev/null 2>&1
+
+    echo "caelestia" > "$STATE"
+    echo "Done. Log out and back in if the bar does not appear."
+}
+
+to_plasma() {
+    local theme="${1:-kanagawa}"
+
+    # This switches between two installed desktops; it does not install either.
+    # Without the check the Plasma side comes up bare - no shortcuts, no
+    # KRunner entries - with nothing on screen to say why.
+    if [ ! -x "$HOME/.local/bin/plasma-theme" ] ||
+        [ ! -f "$HOME/.local/share/krunner/dbusplugins/dotfiles-runner.desktop" ]; then
+        echo "The Plasma desktop is not installed yet." >&2
+        echo "Run ./install.sh --desktop and pick option 1 first." >&2
+        return 1
+    fi
+
+    echo "Switching to Plasma..."
+
+    command -v caelestia > /dev/null 2>&1 && caelestia shell -k > /dev/null 2>&1
+    set_hidden "$AUTOSTART" true
+
+    # The one that matters: it derives the palette from the wallpaper on a
+    # timer, so left running it undoes the colour scheme within seconds.
+    unit stop kde-material-you-colors.service
+    unit disable kde-material-you-colors.service
+
+    release_caelestia_shortcuts
+    restore_kwin_shortcuts
+
+    set_hidden "$APPS/dotfiles-wallpaper-next.desktop" false
+    set_hidden "$APPS/dotfiles-wallpaper-menu.desktop" false
+    unit enable dotfiles-runner.service
+    unit start dotfiles-runner.service
+
+    local panels
+    if ! panels="$(panel_count)"; then
+        echo "plasmashell is not answering; the panel was not created." >&2
+        echo "Run 'desktop-mode plasma' again once the desktop has settled." >&2
+        panels="unknown"
+    fi
+
+    if [ "$panels" = "0" ]; then
+        evaluate '
+var panel = new Panel("org.kde.panel");
+panel.location = "bottom";
+panel.height = 46;
+panel.floating = true;
+panel.lengthMode = "fit";
+panel.alignment = "center";
+panel.addWidget("org.kde.plasma.kickoff");
+panel.addWidget("org.kde.plasma.icontasks");
+panel.addWidget("org.kde.plasma.marginsseparator");
+panel.addWidget("org.kde.plasma.systemtray");
+panel.addWidget("org.kde.plasma.digitalclock");
+' > /dev/null
+    fi
+
+    rebuild_cache
+
+    # Restores the colours the daemon may have overwritten, and points the lock
+    # screen back at a plain image.
+    if command -v plasma-theme > /dev/null 2>&1; then
+        plasma-theme "$theme" || true
+    fi
+
+    mkdir -p "$(dirname "$STATE")"
+    echo "plasma" > "$STATE"
+    echo "Done. Log out and back in to drop the last of Caelestia's shortcuts."
+}
+
+case "${1:-status}" in
+-h | --help) usage 0 ;;
+caelestia) to_caelestia ;;
+plasma) to_plasma "${2:-kanagawa}" ;;
+status)
+    if [ -r "$STATE" ]; then
+        echo "Mode: $(cat "$STATE")"
+    else
+        echo "Mode: unknown (never switched)"
+    fi
+    pgrep -f 'quickshell.*caelestia' > /dev/null && echo "  Caelestia shell: running"
+    echo "  Plasma panels: $(evaluate 'print(panels().length)')"
+    ;;
+*)
+    echo "Unknown mode: $1" >&2
+    usage 1
+    ;;
+esac
+SWITCH
+
+    chmod +x "$target"
+
+    log_success "desktop-mode installed to $target"
+}
+
+# Built through Plasma's scripting API over D-Bus rather than by writing
+# plasma-org.kde.plasma.desktop-appletsrc. plasmashell keeps that file open and
+# rewrites it from its own memory, so edits to it are either ignored or undone
+# at the next save.
+#
+# lengthMode "fit" is what makes it a floating bar rather than a full-width
+# one: the panel shrinks to its contents instead of spanning the screen.
+install_panel() {
+    local existing
+
+    if ! command -v qdbus6 &> /dev/null; then
+        log_info "qdbus6 not found, skipping the panel"
+        return 0
+    fi
+
+    if ! qdbus6 org.kde.plasmashell &> /dev/null; then
+        log_info "plasmashell is not running, skipping the panel"
+        return 0
+    fi
+
+    # evaluateScript returns whatever the script prints, not what it evaluates
+    # to, so every value that has to come back goes through print().
+    existing="$(qdbus6 org.kde.plasmashell /PlasmaShell \
+        org.kde.PlasmaShell.evaluateScript 'print(panels().length)' 2>/dev/null)"
+
+    if [ "${existing:-0}" != "0" ]; then
+        log_info "A panel already exists, leaving the layout alone"
+        log_info "Remove it in Edit Mode first if you want ours instead"
+        return 0
+    fi
+
+    local script
+    script='
+var panel = new Panel("org.kde.panel");
+panel.location = "bottom";
+panel.height = 46;
+panel.floating = true;
+panel.lengthMode = "fit";
+panel.alignment = "center";
+panel.addWidget("org.kde.plasma.kickoff");
+panel.addWidget("org.kde.plasma.icontasks");
+panel.addWidget("org.kde.plasma.marginsseparator");
+panel.addWidget("org.kde.plasma.systemtray");
+panel.addWidget("org.kde.plasma.digitalclock");
+print(panel.widgetIds.length);
+'
+
+    local widgets
+    widgets="$(qdbus6 org.kde.plasmashell /PlasmaShell \
+        org.kde.PlasmaShell.evaluateScript "$script" 2>/dev/null)"
+
+    if [ "${widgets:-0}" = "5" ]; then
+        log_success "Floating panel created with $widgets widgets"
+    else
+        log_warning "The panel may not have been created correctly"
+    fi
+}
+
+# The colour scheme is only part of a theme: the Plasma theme, the accent and
+# the lock screen wallpaper follow the palette too. Rather than repeat that
+# list here, the installer runs the switcher it just installed, so a fresh
+# install and a later `plasma-theme sakura` cannot mean different things.
+apply_palette_settings() {
+    local switcher="$HOME/.local/bin/plasma-theme"
+
+    if [ ! -x "$switcher" ]; then
+        log_warning "The theme switcher is not installed, skipping"
+        return 0
+    fi
+
+    if ! command -v plasma-apply-colorscheme &> /dev/null; then
+        log_info "Not a Plasma session, the theme applies at the next login"
+        return 0
+    fi
+
+    if run_logged "$switcher" "$DEFAULT_KDE_THEME"; then
+        log_success "Palette settings applied: $DEFAULT_KDE_THEME"
+    else
+        log_warning "Could not apply every palette setting"
+    fi
 }
 
 install_kde_color_schemes() {
@@ -347,6 +716,37 @@ bind_shortcut() {
     log_success "$combo bound to $description"
 }
 
+# Breeze in Plasma 6.6 has no corner radius setting at all, so rounded windows
+# mean a different decoration. Darkly is a Breeze fork that rounds them and is
+# what Caelestia uses, but it is not in apt on Ubuntu 26.04 and only ends up
+# installed if Caelestia built it, so it is used when present and not required.
+#
+# Its own options are left at their defaults, which already round the corners.
+# They live in darklyrc under key names this repo has not verified against a
+# real config file, and guessing them would write keys that silently do
+# nothing. Tune them in System Settings > Window Decorations > Darkly.
+apply_window_decoration() {
+    local plugins="/usr/lib/x86_64-linux-gnu/qt6/plugins/org.kde.kdecoration3"
+    local library="org.kde.breeze"
+    local theme="Breeze"
+
+    if [ -f "$plugins/org.kde.darkly.so" ]; then
+        library="org.kde.darkly"
+        theme="Darkly"
+    else
+        log_info "Darkly is not installed, using Breeze (square corners)"
+    fi
+
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library "$library"
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$theme"
+
+    if command -v qdbus6 &> /dev/null; then
+        qdbus6 org.kde.KWin /KWin reconfigure > /dev/null 2>&1 || true
+    fi
+
+    log_success "Window decoration set to $theme"
+}
+
 icon_theme_exists() {
     local theme="$1"
     local dir
@@ -475,10 +875,12 @@ if [ -z "$line" ]; then
     usage 1
 fi
 
-IFS='|' read -r _ scheme icons shadow <<< "$line"
+IFS='|' read -r _ scheme icons shadow plasma accent <<< "$line"
 scheme="$(echo "$scheme" | xargs)"
 icons="$(echo "$icons" | xargs)"
 shadow="$(echo "$shadow" | xargs)"
+plasma="$(echo "$plasma" | xargs)"
+accent="$(echo "$accent" | xargs)"
 
 if ! command -v plasma-apply-colorscheme > /dev/null 2>&1; then
     echo "plasma-apply-colorscheme not found: is this a Plasma session?" >&2
@@ -497,13 +899,60 @@ fi
 
 kwriteconfig6 --file breezerc --group Common --key ShadowColor "$shadow"
 
+# The colour scheme leaves the panel and the popups alone: those follow the
+# Plasma theme, which is a separate setting and stays on its default unless
+# it is set too.
+#
+# Darkly's Plasma theme is the match for its window decoration, and it rounds
+# the panel, the popups and the notifications, all of which breeze-dark leaves
+# square. It ships a dark variant only, so it stands in for breeze-dark and
+# never for breeze-light.
+if [ "$plasma" = "breeze-dark" ] && [ -d /usr/share/plasma/desktoptheme/darkly ]; then
+    plasma="darkly"
+fi
+
+if [ -n "$plasma" ] && command -v plasma-apply-desktoptheme > /dev/null 2>&1; then
+    plasma-apply-desktoptheme "$plasma" > /dev/null 2>&1 ||
+        echo "Could not apply the $plasma Plasma theme" >&2
+fi
+
+# Plasma picks its highlight from the wallpaper by default, which drifts from
+# the palette. Pin it to the colour the terminal uses for a focused border.
+if [ -n "$accent" ]; then
+    kwriteconfig6 --file kdeglobals --group General --key AccentColor "$accent"
+    kwriteconfig6 --file kdeglobals --group General --key accentColorFromWallpaper false
+fi
+
+# Installing wallpapers is not the same as using one. Without this the
+# desktop keeps whatever image was already set, which is the largest thing
+# on screen and the one that decides whether any of this reads as a theme.
+desktop_wallpaper="$HOME/Pictures/Wallpapers/$1-seigaiha.png"
+if [ -f "$desktop_wallpaper" ] &&
+    command -v plasma-apply-wallpaperimage > /dev/null 2>&1; then
+    plasma-apply-wallpaperimage "$desktop_wallpaper" > /dev/null 2>&1 ||
+        echo "Could not set the desktop wallpaper" >&2
+    # Keep the rotator in step, so Meta+K carries on from here rather than
+    # jumping back to wherever it had got to.
+    state="${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-next"
+    mkdir -p "$(dirname "$state")"
+    printf '%s\n' "$desktop_wallpaper" > "$state"
+fi
+
+lock_wallpaper="$HOME/Pictures/Wallpapers/$1-torii.png"
+if [ -f "$lock_wallpaper" ]; then
+    kwriteconfig6 --file kscreenlockerrc --group Greeter \
+        --key WallpaperPlugin org.kde.image
+    kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+        --group org.kde.image --group General --key Image "file://$lock_wallpaper"
+fi
+
 # KWin rereads its decoration config on reconfigure; without this the shadow
 # keeps its old colour until the next login.
 if command -v qdbus6 > /dev/null 2>&1; then
     qdbus6 org.kde.KWin /KWin reconfigure > /dev/null 2>&1 || true
 fi
 
-echo "Theme set to $1: scheme $scheme, icons $icons, shadow $shadow"
+echo "Theme set to $1: scheme $scheme, icons $icons, plasma $plasma, accent $accent"
 SWITCHER
 
     chmod +x "$target"
@@ -525,7 +974,9 @@ install_wallpapers() {
     local count=0
     local file
 
-    for file in "$src"/*.png; do
+    # The torii backgrounds come along: the lock screen uses one, and it reads
+    # from this directory the same way the desktop does.
+    for file in "$src"/*.png "$DOTFILES_DIR/config/login"/*.png; do
         [ -f "$file" ] || continue
         if cp "$file" "$WALLPAPER_DIR/"; then
             count=$((count + 1))

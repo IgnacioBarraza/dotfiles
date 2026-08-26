@@ -10,12 +10,17 @@
 # all, and neither does the Plasma theme, so the login screen is themed here
 # whichever of the two is installed.
 #
+# The background is a torii, generated per palette by
+# scripts/generate_login_backgrounds.py. A torii marks the boundary between the
+# ordinary and the sacred, which is a fair description of a login screen.
+#
 # The colours come from the same generated schemes as everything else, so the
 # login screen cannot drift from the terminal and the desktop. See config/kde/.
 #
 # Functions:
 #   - setup_login_screen: Main function
 #   - install_sddm_theme: Install the Breeze theme package
+#   - fork_sddm_theme: Copy Breeze into a directory this repo owns
 #   - configure_sddm_theme: Point the theme at our background
 #   - apply_sddm_colours: Give the greeter our colour scheme
 #   - select_sddm_theme: Make Breeze the active theme
@@ -27,7 +32,14 @@
 
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
-SDDM_THEME_DIR="/usr/share/sddm/themes/breeze"
+# SDDM has no theme.conf.user or any other override file: it reads the single
+# theme.conf named by the theme's metadata.desktop, and that file belongs to
+# the package, which replaces it on upgrade without asking (it is not a dpkg
+# conffile). So Breeze is copied into a directory this repo owns and the copy
+# is what gets configured. The theme carries no absolute paths back to itself,
+# so it relocates cleanly.
+SDDM_SOURCE_THEME="/usr/share/sddm/themes/breeze"
+SDDM_THEME_DIR="/usr/share/sddm/themes/breeze-dotfiles"
 SDDM_BACKGROUND="/usr/share/backgrounds/dotfiles-login.png"
 SDDM_HOME="/var/lib/sddm"
 
@@ -41,8 +53,8 @@ setup_login_screen() {
 
     log_info "Select a login screen theme"
     echo ""
-    echo "  1) Sakura (dark, pink)"
-    echo "  2) Kanagawa (dark, blue)"
+    echo "  1) Kanagawa (dark, blue)"
+    echo "  2) Sakura (dark, gold accent)"
     echo "  3) Yuki (light)"
     echo "  4) Skip"
     echo ""
@@ -51,8 +63,8 @@ setup_login_screen() {
 
     local palette
     case "$choice" in
-    1) palette="sakura" ;;
-    2) palette="kanagawa" ;;
+    1) palette="kanagawa" ;;
+    2) palette="sakura" ;;
     3) palette="yuki" ;;
     *)
         log_info "Skipping the login screen"
@@ -61,6 +73,8 @@ setup_login_screen() {
     esac
 
     install_sddm_theme || return 1
+
+    fork_sddm_theme || return 1
 
     configure_sddm_theme "$palette" || return 1
 
@@ -74,7 +88,7 @@ setup_login_screen() {
 }
 
 install_sddm_theme() {
-    if [ -d "$SDDM_THEME_DIR" ]; then
+    if [ -d "$SDDM_SOURCE_THEME" ]; then
         log_success "The Breeze login theme is already installed"
         return 0
     fi
@@ -89,15 +103,37 @@ install_sddm_theme() {
     log_success "Breeze login theme installed"
 }
 
+fork_sddm_theme() {
+    # Earlier versions of this script wrote a theme.conf.user into the stock
+    # theme, believing SDDM would read it. It does not, so clear it out.
+    run_logged sudo rm -f "$SDDM_SOURCE_THEME/theme.conf.user"
+
+    if ! run_logged sudo rm -rf "$SDDM_THEME_DIR"; then
+        log_error "Could not clear $SDDM_THEME_DIR"
+        return 1
+    fi
+
+    if ! run_logged sudo cp -a "$SDDM_SOURCE_THEME" "$SDDM_THEME_DIR"; then
+        log_error "Could not copy the Breeze theme"
+        return 1
+    fi
+
+    # So the copy is tellable from the original in System Settings.
+    run_logged sudo sed -i 's/^Name=Breeze$/Name=Breeze (Nach0_0)/' \
+        "$SDDM_THEME_DIR/metadata.desktop"
+
+    log_success "Breeze copied to $SDDM_THEME_DIR"
+}
+
 # The background cannot live under the user's home: the greeter runs as the
-# sddm user, which cannot read it. It also cannot live inside the theme, which
-# a package upgrade replaces.
+# sddm user, which cannot read it.
 configure_sddm_theme() {
     local palette="$1"
-    local wallpaper="$DOTFILES_DIR/config/wallpapers/${palette}-seigaiha.png"
+    local wallpaper="$DOTFILES_DIR/config/login/${palette}-torii.png"
 
     if [ ! -f "$wallpaper" ]; then
-        log_error "No wallpaper at $wallpaper"
+        log_error "No login background at $wallpaper"
+        log_info "Generate it with: python3 scripts/generate_login_backgrounds.py"
         return 1
     fi
 
@@ -108,33 +144,49 @@ configure_sddm_theme() {
 
     run_logged sudo chmod 644 "$SDDM_BACKGROUND"
 
-    # theme.conf.user overrides theme.conf and is not owned by the package, so
-    # it survives upgrades. theme.conf itself would be replaced by them.
-    if ! sudo tee "$SDDM_THEME_DIR/theme.conf.user" > /dev/null <<CONF
+    # Every key the theme reads is written, not just the changed ones: this
+    # replaces theme.conf rather than overriding it, and a missing key leaves
+    # its QML binding undefined.
+    local fallback
+    fallback="$(awk '/^background / { print $2; exit }' \
+        "$DOTFILES_DIR/config/kitty/themes/${palette}.conf" 2>/dev/null)"
+
+    if ! sudo tee "$SDDM_THEME_DIR/theme.conf" > /dev/null <<CONF
 [General]
 type=image
 background=$SDDM_BACKGROUND
+color=${fallback:-#222335}
 showClock=true
 showlogo=hidden
+logo=$SDDM_THEME_DIR/default-logo.svg
+fontSize=10
+needsFullUserModel=false
 CONF
     then
         log_error "Could not write the theme configuration"
         return 1
     fi
 
-    log_success "Login background set to ${palette}-seigaiha"
+    log_success "Login background set to the ${palette} torii"
 }
 
-# The greeter reads a Plasma colour scheme from the sddm user's config, the
-# same way any Plasma session does. The .colors files this repo generates are
-# already in that format, so one goes straight in as kdeglobals.
+# The greeter is a Plasma session like any other: it reads its colours, icons
+# and fonts from kdeglobals in the sddm user's config. The .colors files this
+# repo generates are already in that format, so one goes straight in, and the
+# icon theme and fonts are appended to it.
+#
+# The icon theme is what draws the shutdown, restart and sleep buttons in the
+# footer, so setting it is what changes those.
 apply_sddm_colours() {
     local palette="$1"
-    local scheme
-    local colours
+    local scheme icons colours
 
     scheme="$(awk -F'|' -v p="$palette" '
         $1 ~ p { gsub(/ /, "", $2); print $2; exit }
+    ' "$DOTFILES_DIR/config/kde/themes.conf" 2>/dev/null)"
+
+    icons="$(awk -F'|' -v p="$palette" '
+        $1 ~ p { gsub(/ /, "", $3); print $3; exit }
     ' "$DOTFILES_DIR/config/kde/themes.conf" 2>/dev/null)"
 
     colours="$DOTFILES_DIR/config/kde/color-schemes/${scheme}.colors"
@@ -151,18 +203,33 @@ apply_sddm_colours() {
         return 0
     fi
 
+    # Appended after the copy, since the .colors file carries neither.
+    if [ -n "$icons" ] && [ -d "/usr/share/icons/$icons" ]; then
+        run_logged sudo kwriteconfig6 --file "$SDDM_HOME/.config/kdeglobals" \
+            --group Icons --key Theme "$icons"
+    else
+        log_info "Icon theme $icons is not installed, the greeter keeps its own"
+    fi
+
+    local font="Noto Sans,10,-1,0,400,0,0,0,0,0,0,0,0,0,0,1"
+
+    run_logged sudo kwriteconfig6 --file "$SDDM_HOME/.config/kdeglobals" \
+        --group General --key font "$font"
+    run_logged sudo kwriteconfig6 --file "$SDDM_HOME/.config/kdeglobals" \
+        --group General --key menuFont "$font"
+
     run_logged sudo chown -R sddm:sddm "$SDDM_HOME/.config"
 
-    log_success "Greeter colours set to $scheme"
+    log_success "Greeter set to $scheme with $icons icons"
 }
 
 # Two files already pin the theme here: /etc/sddm.conf and the one KDE writes.
 # Ordering settles it rather than editing either: SDDM reads /etc/sddm.conf
 # first, then /etc/sddm.conf.d/*.conf in name order, and the last value wins.
 select_sddm_theme() {
-    if ! sudo tee /etc/sddm.conf.d/zz-dotfiles.conf > /dev/null <<'CONF'
+    if ! sudo tee /etc/sddm.conf.d/zz-dotfiles.conf > /dev/null <<CONF
 [Theme]
-Current=breeze
+Current=$(basename "$SDDM_THEME_DIR")
 CONF
     then
         log_error "Could not select the Breeze login theme"

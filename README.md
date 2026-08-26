@@ -380,6 +380,144 @@ The stack is copied to `~/dev-stack/` so it can be edited without touching the
 cloned repository. The original lives at
 [config/docker/docker-compose.yml](config/docker/docker-compose.yml).
 
+## 🖥️ Desktop
+
+The installer offers two desktops, and they are mutually exclusive. Run just
+this step with:
+
+```bash
+./install.sh --desktop
+```
+
+Already installed both? Use `desktop-mode` below rather than re-running this.
+
+| Option        | What it is                                                    |
+| :------------ | :------------------------------------------------------------ |
+| **Nach0_0**   | KDE Plasma, themed from the same palettes as the terminal      |
+| **Caelestia** | A community shell that replaces Plasma's, built on Quickshell  |
+| **Skip**      | Leave the desktop alone                                        |
+
+### Switching between the two
+
+They cannot both be live: Caelestia's bar sits on top of the Plasma panel, and
+its colour daemon rewrites the palette. Neither installer turns the other off,
+so there is a command for it:
+
+```bash
+desktop-mode status      # which one is active
+desktop-mode plasma      # the themed Plasma desktop
+desktop-mode caelestia   # the Quickshell desktop
+```
+
+It toggles the Caelestia autostart, its `kde-material-you-colors` service, the
+wallpaper shortcuts, the KRunner service, the panel and the lock screen, then
+re-applies the palette. Log out and back in afterwards for the shortcuts to
+follow.
+
+`kde-material-you-colors` is the one that matters. It derives the palette from
+the wallpaper on a timer, so left running under option 1 it undoes the colour
+scheme within seconds of it being set.
+
+### Option 1: the Plasma theme
+
+Everything visual is derived from `config/kitty/themes/*.conf`, the same files
+the terminal reads. `scripts/generate_kde_colors.py` turns each palette into a
+`.colors` scheme and a row in `config/kde/themes.conf`; CI regenerates both and
+fails on a diff, so the desktop cannot drift from the terminal.
+
+What it sets:
+
+- **Colours** — a generated `.colors` scheme per palette, every section checked
+  for 4.5:1 text contrast
+- **Plasma theme** — `breeze-dark` or `breeze-light`, following the palette.
+  This is what colours the panel and the popups; the colour scheme alone does
+  not touch them
+- **Accent** — pinned to the palette's focused-border colour, so Plasma stops
+  deriving it from the wallpaper
+- **Fonts** — Noto Sans and FiraCode Nerd Font Mono
+- **Icons** — Papirus, Dark or Light to match
+- **Window decoration** — Darkly when it is installed, for rounded corners,
+  Breeze otherwise. Buttons sit on the left in macOS order
+- **Panel** — a floating bar, centred, shrunk to its contents
+- **Wallpapers** — nine generated patterns plus three torii
+- **Lock screen** — the torii of the active palette
+- **Splash** — off; it is a stock KDE animation nothing here can theme
+
+### Switching palettes
+
+```bash
+plasma-theme            # list them
+plasma-theme kanagawa   # colours, icons, shadow, Plasma theme, accent, lock screen
+```
+
+The installer runs this same script at the end rather than repeating its list,
+so a fresh install and a later switch cannot mean different things.
+
+### Wallpapers
+
+| Shortcut       | Action                        |
+| :------------- | :---------------------------- |
+| `Meta+K`       | Next wallpaper                |
+| `Meta+Shift+K` | Grid picker (rofi, or kdialog)|
+
+Directories are listed in `~/.config/dotfiles-wallpapers.conf`. Add your own
+and both commands pick them up.
+
+The binding lives in the `.desktop` file's `X-KDE-Shortcuts`, not in
+`kglobalshortcutsrc`. Plasma only turns the first into a working grab, and it
+only scans for it when a session starts, so **new shortcuts need a logout**.
+
+### KRunner
+
+`Alt+Space`, then type:
+
+| Type        | Get                                  |
+| :---------- | :----------------------------------- |
+| `tema`      | The palettes, to switch between them |
+| `fondo`     | Next wallpaper, or the picker        |
+| `bloquear`  | Lock the session                     |
+
+It is a D-Bus service under `systemd --user`, and it reads the palette list
+from `themes.conf`, so a palette added to the repo appears without editing it.
+
+### Option 2: Caelestia
+
+[Caelestia](https://github.com/ladybug-me/caelestia-dots-kde) replaces Plasma's
+shell with its own. Plasma stays as the compositor; the panel, launcher,
+notifications and lock screen all come from Quickshell instead. It is a much
+larger and more opinionated thing than option 1, it compiles several
+dependencies from source, and it derives its colours from the wallpaper rather
+than from a palette.
+
+Choosing it keeps this repo's terminal theme: the installer re-applies kitty,
+alacritty, starship and fastfetch afterwards, because Caelestia deploys its own
+copies of all four.
+
+Two of its behaviours are patched, both re-applied automatically after an
+update by a systemd path unit watching its version file:
+
+- The lock screen is started without `QML2_IMPORT_PATH`, so it cannot find its
+  own QML modules and `Meta+L` fails
+- The terminal shortcut hardcodes `foot` instead of reading
+  `general.apps.terminal`, which every other caller of that setting uses
+
+To undo it: `bash ~/caelestia-dots-kde/uninstall.sh`.
+
+### Login screen
+
+The SDDM greeter gets a torii background generated from the active palette.
+
+Breeze is copied to `/usr/share/sddm/themes/breeze-dotfiles/` and that copy is
+what gets configured: SDDM has no override file, it reads the single
+`theme.conf` the theme's `metadata.desktop` names, and that file belongs to the
+package, which replaces it on upgrade without asking.
+
+Preview it without rebooting:
+
+```bash
+sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/breeze-dotfiles
+```
+
 ## 📁 Project Structure
 
 ```text
@@ -396,6 +534,13 @@ cloned repository. The original lives at
 │   ├── languages_setup.sh    # Node, Python tooling, the JVM stack and Go
 │   ├── docker_setup.sh       # Docker CE, the docker group and lazydocker
 │   ├── databases_setup.sh    # Database clients and the compose stack
+│   ├── desktop_setup.sh      # KDE Plasma theme, panel, wallpapers, shortcuts
+│   ├── caelestia_setup.sh    # The Caelestia shell, offered as the alternative
+│   ├── login_setup.sh        # SDDM login screen
+│   ├── krunner_setup.sh      # KRunner plugin for the repo's own commands
+│   ├── generate_kde_colors.py       # .colors + themes.conf from the Kitty palettes
+│   ├── generate_wallpapers.py       # Pattern wallpapers from the same palettes
+│   ├── generate_login_backgrounds.py # Torii backgrounds for login and lock
 │   └── validate.sh           # Static checks, also run by CI
 ├── config/
 │   ├── kitty/                # Modular config + themes/, theme.conf is a symlink
@@ -403,6 +548,9 @@ cloned repository. The original lives at
 │   ├── starship/             # Prompt
 │   ├── fastfetch/            # System info layout
 │   ├── docker/               # Example compose stack for local databases
+│   ├── kde/                  # Colour schemes, settings.conf and themes.conf
+│   ├── wallpapers/           # Generated pattern wallpapers
+│   ├── login/                # Generated torii backgrounds
 │   └── bin/                  # Scripts installed into ~/.local/bin
 └── .github/workflows/ci.yml  # Runs scripts/validate.sh on every push and PR
 ```
@@ -425,6 +573,7 @@ which goes to `~/.local/bin/`.
 | Fresh machine, repo not cloned yet    | `bootstrap.sh` | [Auto install](#-auto-install)              |
 | You already cloned the repo           | `install.sh`   | [Manual install](#-manual-install)          |
 | You only want to re-apply the configs | `install.sh`   | Re-run it and skip the steps you don't need |
+| You only want the desktop and login   | `install.sh`   | `./install.sh --desktop`                    |
 
 `bootstrap.sh` only clones the repository and then hands over to `install.sh`.
 Once you have a clone, you never need it again.

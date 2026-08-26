@@ -17,6 +17,7 @@
 #   - fetch_caelestia: Clone or update the checkout
 #   - install_caelestia_fixups: Install the patches that updates undo
 #   - remove_wallpaper_shortcuts: Hand the wallpaper over to Caelestia
+#   - clear_stdbuf_preload: Stop LD_PRELOAD leaking into every terminal
 #   - restore_terminal_configs: Put this repo's terminal theme back
 #
 # Dependencies:
@@ -81,6 +82,8 @@ NOTICE
     install_caelestia_fixups
 
     remove_wallpaper_shortcuts
+
+    clear_stdbuf_preload
 
     restore_terminal_configs
 
@@ -222,17 +225,24 @@ UNIT
 
 # Caelestia owns the wallpaper once it is installed: it derives the colour
 # scheme from it and asks that Plasma's wallpaper manager be left alone. Our
-# Meta+K shortcuts do exactly what it asks not to, so they go. The rotator and
-# the wallpapers themselves stay, and Caelestia picks the images up from
-# ~/Pictures/Wallpapers on its own.
+# Meta+K shortcuts do exactly what it asks not to, so they are switched off.
+# The rotator and the wallpapers themselves stay, and Caelestia picks the
+# images up from ~/Pictures/Wallpapers on its own.
 remove_wallpaper_shortcuts() {
     local desktop_dir="$HOME/.local/share/applications"
     local removed=0
     local name
 
     for name in dotfiles-wallpaper-next dotfiles-wallpaper-menu; do
+        # Hidden rather than deleted. Hidden=true takes the entry out of the
+        # service database exactly as removing the file would, but leaves the
+        # file for desktop-mode to switch back on. Deleting it meant a later
+        # switch to Plasma had nothing to restore and came up without the
+        # wallpaper shortcuts.
         if [ -f "$desktop_dir/$name.desktop" ]; then
-            rm -f "$desktop_dir/$name.desktop" && removed=$((removed + 1))
+            kwriteconfig6 --file "$desktop_dir/$name.desktop" \
+                --group "Desktop Entry" --key Hidden true &&
+                removed=$((removed + 1))
         fi
 
         # Older versions of this repo also wrote the binding into the config.
@@ -246,6 +256,28 @@ remove_wallpaper_shortcuts() {
     command -v kbuildsycoca6 &> /dev/null && kbuildsycoca6 > /dev/null 2>&1
 
     log_info "Meta+K removed, Caelestia handles wallpapers (Meta+Ctrl+T)"
+}
+
+# Caelestia starts its shell through stdbuf, to keep its log line buffered:
+#
+#   exec stdbuf -oL -eL quickshell -d -n -p .../shell.qml
+#
+# stdbuf works by setting LD_PRELOAD, so quickshell carries it, and so does
+# every process quickshell launches, terminals included. Programs under an
+# AppArmor profile that does not allow that path then fail to load it and the
+# dynamic linker prints
+#
+#   ERROR: ld.so: object '.../libstdbuf.so' from LD_PRELOAD cannot be
+#   preloaded (cannot open shared object file): ignored.
+#
+# Harmless, since the linker carries on, but it lands in the middle of unrelated
+# output. Line buffering means nothing in an interactive shell, so drop it
+# there and leave Caelestia's own launch alone.
+clear_stdbuf_preload() {
+    zshrc_ensure_line \
+        '[[ "${LD_PRELOAD:-}" != */libstdbuf.so ]] || unset LD_PRELOAD' \
+        "Caelestia starts its shell through stdbuf, which leaks LD_PRELOAD into every terminal it opens" &&
+        log_success "LD_PRELOAD cleared for interactive shells"
 }
 
 # Caelestia deploys its own kitty, starship, fastfetch and btop configurations.
