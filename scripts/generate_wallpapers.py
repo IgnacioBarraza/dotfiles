@@ -19,7 +19,6 @@ import os
 import re
 import sys
 
-from PIL import Image, ImageDraw
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KITTY_THEMES = os.path.join(REPO, "config/kitty/themes")
@@ -142,6 +141,11 @@ PATTERNS = {"seigaiha": seigaiha, "asanoha": asanoha, "shippo": shippo}
 
 
 def render(palette, pattern, width, height):
+    # Imported here rather than at the top so that --check, which only looks at
+    # the filesystem, runs without Pillow. CI has no image library and does not
+    # need one to tell whether a file is present.
+    from PIL import Image, ImageDraw
+
     bg = palette["bg"]
     light = luminance(bg) > 0.5
 

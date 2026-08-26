@@ -222,14 +222,14 @@ else
     fail "run scripts/generate_kde_colors.py to regenerate"
 fi
 
-head_ "Generated images"
+head_ "Generated assets"
 # The wallpapers and the login backgrounds are derived from the Kitty
 # palettes, so a new theme that skips the generators is caught here.
 if python3 "$REPO_DIR/scripts/generate_wallpapers.py" --check &&
     python3 "$REPO_DIR/scripts/generate_login_backgrounds.py" --check; then
     pass "every wallpaper and login background is present"
 else
-    fail "run scripts/generate_wallpapers.py and scripts/generate_login_backgrounds.py"
+    fail "run the generators in scripts/ to regenerate"
 fi
 
 head_ "Theme symlinks"

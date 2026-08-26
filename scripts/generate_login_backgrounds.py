@@ -18,8 +18,6 @@ import os
 import re
 import sys
 
-from PIL import Image, ImageDraw, ImageFilter
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from generate_wallpapers import blend, hex_to_rgb, luminance, read_palette, seigaiha
@@ -31,6 +29,8 @@ OUT_DIR = os.path.join(REPO, "config/login")
 
 def sky(image, top, bottom, horizon):
     """Vertical gradient, darkest at the top, lifting towards the horizon."""
+    from PIL import ImageDraw
+
     draw = ImageDraw.Draw(image)
     for y in range(horizon):
         draw.line([(0, y), (image.width, y)],
@@ -105,6 +105,9 @@ def torii(draw, w, h, waterline, ink, dark):
 
 
 def render(palette, sun_colour, width, height):
+    # See generate_wallpapers.render: --check must not need Pillow.
+    from PIL import Image, ImageDraw, ImageFilter
+
     bg = palette["bg"]
     light = luminance(bg) > 0.5
 

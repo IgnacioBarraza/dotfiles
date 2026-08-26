@@ -21,6 +21,7 @@
 #   - setup_login_screen: Main function
 #   - install_sddm_theme: Install the Breeze theme package
 #   - fork_sddm_theme: Copy Breeze into a directory this repo owns
+#   - select_sddm_background: Pick an image from config/login/
 #   - configure_sddm_theme: Point the theme at our background
 #   - apply_sddm_colours: Give the greeter our colour scheme
 #   - select_sddm_theme: Make Breeze the active theme
@@ -72,11 +73,14 @@ setup_login_screen() {
         ;;
     esac
 
+    local background
+    background="$(select_sddm_background "$palette")" || return 0
+
     install_sddm_theme || return 1
 
     fork_sddm_theme || return 1
 
-    configure_sddm_theme "$palette" || return 1
+    configure_sddm_theme "$background" || return 1
 
     apply_sddm_colours "$palette"
 
@@ -125,24 +129,86 @@ fork_sddm_theme() {
     log_success "Breeze copied to $SDDM_THEME_DIR"
 }
 
-# The background cannot live under the user's home: the greeter runs as the
-# sddm user, which cannot read it.
-configure_sddm_theme() {
+# Every image in config/login/ is offered, not just the generated torii, so
+# dropping a picture in that directory is all it takes to use it here. The one
+# matching the chosen palette leads, since it is the one whose colours match
+# the rest of the greeter.
+select_sddm_background() {
     local palette="$1"
-    local wallpaper="$DOTFILES_DIR/config/login/${palette}-torii.png"
+    local dir="$DOTFILES_DIR/config/login"
+    local default="$dir/${palette}-torii.png"
+    local -a images=()
+    local file index choice
 
-    if [ ! -f "$wallpaper" ]; then
-        log_error "No login background at $wallpaper"
-        log_info "Generate it with: python3 scripts/generate_login_backgrounds.py"
+    [ -f "$default" ] && images+=("$default")
+
+    for file in "$dir"/*; do
+        [ -f "$file" ] || continue
+        [ "$file" = "$default" ] && continue
+        case "${file,,}" in
+        *.png | *.jpg | *.jpeg | *.webp) images+=("$file") ;;
+        esac
+    done
+
+    if [ "${#images[@]}" -eq 0 ]; then
+        log_error "No images in config/login/"
+        log_info "Generate them with: python3 scripts/generate_login_backgrounds.py"
         return 1
     fi
 
-    if ! run_logged sudo cp "$wallpaper" "$SDDM_BACKGROUND"; then
+    if [ "${#images[@]}" -eq 1 ]; then
+        printf '%s\n' "${images[0]}"
+        return 0
+    fi
+
+    # The menu goes to the terminal rather than to stdout: stdout is the chosen
+    # path, and printing the menu there would return the menu as the answer.
+    {
+        log_info "Select a login background"
+        echo ""
+        for index in "${!images[@]}"; do
+            printf "  %d) %s\n" "$((index + 1))" "$(basename "${images[index]}")"
+        done
+        echo ""
+    } >&2
+
+    read -rp "Enter your choice [1-${#images[@]}]: " choice
+
+    case "$choice" in
+    "" | *[!0-9]*) choice=1 ;;
+    esac
+
+    if [ "$choice" -lt 1 ] || [ "$choice" -gt "${#images[@]}" ]; then
+        choice=1
+    fi
+
+    printf '%s\n' "${images[choice - 1]}"
+}
+
+# The background cannot live under the user's home: the greeter runs as the
+# sddm user, which cannot read it.
+configure_sddm_theme() {
+    local wallpaper="$1"
+    local target="$SDDM_BACKGROUND"
+
+    if [ ! -f "$wallpaper" ]; then
+        log_error "No login background at $wallpaper"
+        return 1
+    fi
+
+    # Keep the extension: SDDM loads the file by name and an image whose
+    # contents do not match its suffix will not render.
+    case "${wallpaper,,}" in
+    *.jpg | *.jpeg) target="${SDDM_BACKGROUND%.png}.jpg" ;;
+    *.webp) target="${SDDM_BACKGROUND%.png}.webp" ;;
+    esac
+
+    if ! run_logged sudo cp "$wallpaper" "$target"; then
         log_error "Could not install the login background"
         return 1
     fi
 
-    run_logged sudo chmod 644 "$SDDM_BACKGROUND"
+    run_logged sudo chmod 644 "$target"
 
     # Every key the theme reads is written, not just the changed ones: this
     # replaces theme.conf rather than overriding it, and a missing key leaves
@@ -154,7 +220,7 @@ configure_sddm_theme() {
     if ! sudo tee "$SDDM_THEME_DIR/theme.conf" > /dev/null <<CONF
 [General]
 type=image
-background=$SDDM_BACKGROUND
+background=$target
 color=${fallback:-#222335}
 showClock=true
 showlogo=hidden
@@ -167,7 +233,7 @@ CONF
         return 1
     fi
 
-    log_success "Login background set to the ${palette} torii"
+    log_success "Login background set to $(basename "$wallpaper")"
 }
 
 # The greeter is a Plasma session like any other: it reads its colours, icons

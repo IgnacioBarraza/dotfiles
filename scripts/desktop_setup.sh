@@ -900,8 +900,8 @@ fi
 kwriteconfig6 --file breezerc --group Common --key ShadowColor "$shadow"
 
 # The colour scheme leaves the panel and the popups alone: those follow the
-# Plasma theme, which is a separate setting and stays on its default unless
-# it is set too.
+# Plasma theme, which is a separate setting and stays on its default unless it
+# is set too.
 #
 # Darkly's Plasma theme is the match for its window decoration, and it rounds
 # the panel, the popups and the notifications, all of which breeze-dark leaves
@@ -923,11 +923,31 @@ if [ -n "$accent" ]; then
     kwriteconfig6 --file kdeglobals --group General --key accentColorFromWallpaper false
 fi
 
-# Installing wallpapers is not the same as using one. Without this the
-# desktop keeps whatever image was already set, which is the largest thing
-# on screen and the one that decides whether any of this reads as a theme.
+# True for the images this repo generates, false for anything else, so a
+# wallpaper picked by hand survives a theme switch. Without this, choosing a
+# background and then running plasma-theme silently undid the choice.
+generated_wallpaper() {
+    case "${1#file://}" in
+    "$HOME/Pictures/Wallpapers/"*-seigaiha.png | \
+        "$HOME/Pictures/Wallpapers/"*-asanoha.png | \
+        "$HOME/Pictures/Wallpapers/"*-shippo.png | \
+        "$HOME/Pictures/Wallpapers/"*-torii.png) return 0 ;;
+    "") return 0 ;;
+    esac
+    return 1
+}
+
+# Installing wallpapers is not the same as using one. Without this the desktop
+# keeps whatever image was already set, which is the largest thing on screen
+# and the one that decides whether any of this reads as a theme.
 desktop_wallpaper="$HOME/Pictures/Wallpapers/$1-seigaiha.png"
-if [ -f "$desktop_wallpaper" ] &&
+current_desktop="$(kreadconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+    --group Containments --group 1 --group Wallpaper --group org.kde.image \
+    --group General --key Image 2>/dev/null)"
+
+if ! generated_wallpaper "$current_desktop"; then
+    echo "Desktop wallpaper left as you set it"
+elif [ -f "$desktop_wallpaper" ] &&
     command -v plasma-apply-wallpaperimage > /dev/null 2>&1; then
     plasma-apply-wallpaperimage "$desktop_wallpaper" > /dev/null 2>&1 ||
         echo "Could not set the desktop wallpaper" >&2
@@ -939,7 +959,12 @@ if [ -f "$desktop_wallpaper" ] &&
 fi
 
 lock_wallpaper="$HOME/Pictures/Wallpapers/$1-torii.png"
-if [ -f "$lock_wallpaper" ]; then
+current_lock="$(kreadconfig6 --file kscreenlockerrc --group Greeter \
+    --group Wallpaper --group org.kde.image --group General --key Image 2>/dev/null)"
+
+if ! generated_wallpaper "$current_lock"; then
+    echo "Lock screen wallpaper left as you set it"
+elif [ -f "$lock_wallpaper" ]; then
     kwriteconfig6 --file kscreenlockerrc --group Greeter \
         --key WallpaperPlugin org.kde.image
     kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
@@ -976,8 +1001,12 @@ install_wallpapers() {
 
     # The torii backgrounds come along: the lock screen uses one, and it reads
     # from this directory the same way the desktop does.
-    for file in "$src"/*.png "$DOTFILES_DIR/config/login"/*.png; do
+    for file in "$src"/* "$DOTFILES_DIR/config/login"/*; do
         [ -f "$file" ] || continue
+        case "${file,,}" in
+        *.png | *.jpg | *.jpeg | *.webp) ;;
+        *) continue ;;
+        esac
         if cp "$file" "$WALLPAPER_DIR/"; then
             count=$((count + 1))
         fi
