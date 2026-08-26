@@ -428,7 +428,9 @@ fails on a diff, so the desktop cannot drift from the terminal.
 What it sets:
 
 - **Colours** — a generated `.colors` scheme per palette, every section checked
-  for 4.5:1 text contrast
+  for 4.5:1 text contrast. Kanagawa is the default here, not Sakura: Plasma
+  paints the accent on the active task in the panel, and Sakura's accent is a
+  gold that reads as an unread notification
 - **Plasma theme** — `breeze-dark` or `breeze-light`, following the palette.
   This is what colours the panel and the popups; the colour scheme alone does
   not touch them
@@ -439,8 +441,13 @@ What it sets:
 - **Window decoration** — Darkly when it is installed, for rounded corners,
   Breeze otherwise. Buttons sit on the left in macOS order
 - **Panel** — a floating bar, centred, shrunk to its contents
-- **Wallpapers** — nine generated patterns plus three torii
+- **Wallpapers** — nine generated patterns plus three torii, one of them
+  applied to the desktop
 - **Lock screen** — the torii of the active palette
+
+Switching palettes moves all of it together. A wallpaper you pick yourself is
+left alone: `plasma-theme` only replaces one it generated, on the desktop and
+on the lock screen alike.
 - **Splash** — off; it is a stock KDE animation nothing here can theme
 
 ### Switching palettes
@@ -505,7 +512,13 @@ To undo it: `bash ~/caelestia-dots-kde/uninstall.sh`.
 
 ### Login screen
 
-The SDDM greeter gets a torii background generated from the active palette.
+The SDDM greeter gets a torii background generated from the active palette,
+and the greeter's own icons and fonts, so the shutdown and restart buttons in
+its footer follow the theme too.
+
+Any image in `config/login/` is offered, not just the generated ones, so
+dropping a picture in that directory is all it takes to use it. PNG, JPEG and
+WebP all work.
 
 Breeze is copied to `/usr/share/sddm/themes/breeze-dotfiles/` and that copy is
 what gets configured: SDDM has no override file, it reads the single
@@ -908,9 +921,10 @@ cat ~/.ssh/id_ed25519.pub  # Add this to GitHub/GitLab
 
 Planned, not implemented yet. The installer does **not** touch any of these:
 
-| Area           | Planned                                         |
-| :------------- | :---------------------------------------------- |
-| **Desktop**    | KDE customizations (Kvantum, kio-gdrive)        |
+| Area           | Planned                                                    |
+| :------------- | :--------------------------------------------------------- |
+| **Desktop**    | Qt application theming through Kvantum                      |
+| **Desktop**    | Titlebar buttons as coloured discs, which needs an Aurorae theme |
 
 ## ✅ Validating changes
 
@@ -920,9 +934,12 @@ Every static check CI runs is also available locally:
 ./scripts/validate.sh
 ```
 
-It checks shell syntax, ShellCheck, that the config files parse, that the theme
-symlinks resolve, that the Kitty and Alacritty palettes stay identical, and that
-every theme color meets 4.5:1 contrast against its background.
+It checks shell syntax, ShellCheck, that the config files parse, that every
+entry point is defined after sourcing, that the theme symlinks resolve, that the
+Kitty and Alacritty palettes stay identical, that every theme color meets 4.5:1
+contrast against its background, that the KDE colour schemes still match the
+palettes they came from, and that every generated wallpaper and login
+background is present.
 
 Steps whose tool is not installed are skipped rather than failed, so it works
 on a machine that only has some of them.

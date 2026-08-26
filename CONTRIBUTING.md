@@ -105,11 +105,17 @@ Please keep the repository organized.
 - `scripts/languages_setup.sh` → Language runtimes and their tooling
 - `scripts/docker_setup.sh` → Docker CE, the docker group and lazydocker
 - `scripts/databases_setup.sh` → Database clients and the compose stack
+- `scripts/desktop_setup.sh` → KDE Plasma theme, panel, wallpapers, shortcuts
+- `scripts/caelestia_setup.sh` → The Caelestia shell, offered as the alternative
+- `scripts/login_setup.sh` → SDDM login screen
+- `scripts/krunner_setup.sh` → KRunner plugin for the repo's own commands
 - `config/docker/` → Example compose stack for local databases
 - `scripts/validate.sh` → Static checks, also run by CI
 - `scripts/check_glyphs.py` → Verifies no glyph was lost and every one has a font
 - `config/` → Configuration files, mirrored into `~/.config`
 - `config/kitty/themes/` and `config/alacritty/themes/` → Color themes
+- `config/kde/` → Colour schemes, `settings.conf` and `themes.conf`, all generated
+- `config/wallpapers/` and `config/login/` → Generated backgrounds
 - `config/bin/` → Scripts installed into `~/.local/bin`
 - `assets/images/` → Icon and theme previews
 - `.github/workflows/` → CI
@@ -119,6 +125,21 @@ The README has the full tree under
 
 When adding a theme, add it to **both** terminals: CI checks that the Kitty and
 Alacritty palettes stay identical and that every color meets 4.5:1 contrast.
+
+## Generated files
+
+`config/kitty/themes/*.conf` is the only place a colour is written by hand.
+Everything else in the list below is derived from it, and CI fails if any of
+them is stale or missing, so run the generators after touching a palette:
+
+```bash
+python3 scripts/generate_kde_colors.py        # config/kde/ colour schemes + themes.conf
+python3 scripts/generate_wallpapers.py        # config/wallpapers/
+python3 scripts/generate_login_backgrounds.py # config/login/ torii backgrounds
+```
+
+Their `--check` mode only looks at the filesystem, so it runs without Pillow;
+generating needs it (`python3-pil`).
 
 If you're unsure where something belongs, feel free to ask before opening a Pull Request.
 
