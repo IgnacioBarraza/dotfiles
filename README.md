@@ -487,6 +487,79 @@ only scans for it when a session starts, so **new shortcuts need a logout**.
 It is a D-Bus service under `systemd --user`, and it reads the palette list
 from `themes.conf`, so a palette added to the repo appears without editing it.
 
+### The panel
+
+The panel is one bar. What makes it read as a row of floating islands is
+[Panel Colorizer](https://github.com/luisbocanegra/plasma-panel-colorizer),
+which hides the panel's own background and gives each widget a rounded one of
+its own.
+
+```bash
+panel-preset                 # list every preset, ours and the 34 it ships
+panel-preset Nach0_0         # ours: islands, radius 10, 12px apart, blurred
+panel-preset "Blur Widgets"  # one of theirs
+```
+
+Changes apply immediately, no restart.
+
+#### Tuning it yourself
+
+The widget's own dialog is the easy route: right click it in the panel, then
+**Configure**. Anything set there can be saved as a preset from its Presets
+tab, which then shows up in `panel-preset`.
+
+From a terminal, single settings go over D-Bus. The instance name changes every
+time the widget is added to a panel, so read it rather than copying this one:
+
+```bash
+service=$(busctl --user list | grep -o 'luisbocanegra\.panel\.colorizer\.c[0-9]*\.w[0-9]*' | head -1)
+
+qdbus6 "$service" /preset "$service.property" 'widgets.normal.spacing 16'
+qdbus6 "$service" /preset "$service.property" 'widgets.normal.blurBehind true'
+```
+
+The keys are the ones in `config/panel-colorizer/presets/Nach0_0/settings.json`,
+in dot notation. There is no validation: a malformed value breaks the config.
+
+#### Three things that cost us time
+
+**`spacing` is what separates the islands, not `margin`.** At the shipped
+default of 4 they touch and the row reads as one solid bar. None of the 34
+presets that ship with the widget sets a horizontal margin, so none of them
+separates the islands on its own.
+
+**Automatic preset loading overrides whatever you apply.** The widget reloads
+a preset on every start from rules of its own, and that reload wins. A fresh
+install binds "panel is floating" to one of its shipped presets, so anything you
+apply is replaced a moment later with nothing on screen to say why. The
+installer switches the feature off; if you turn it back on and your settings
+keep reverting, this is why.
+
+**Blur needs the fill to stop being opaque.** `blurBehind` draws a blur and then
+covers it with the island's own background, so it shows nothing at
+`backgroundColor.alpha` 1. The installer sets 0.6. Reloading a preset resets
+that alpha regardless of what the preset file says, which is the other reason
+autoloading is off.
+
+**The D-Bus `property` method only reaches `globalSettings`.** Applet level keys
+such as `presetAutoloading` answer `saved` and do not change. Those need the
+settings dialog, or a write to `plasma-org.kde.plasma.desktop-appletsrc` with
+plasmashell stopped, since it holds that file open and rewrites it from memory.
+
+#### The blur
+
+Blur behind the islands needs Panel Colorizer's C++ plugin, which the installer
+builds and puts in `/usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/plasma/panelcolorizer/`.
+Installed from the KDE Store instead, the widget works but `blurBehind` does
+nothing. The widget's own settings show whether it found the plugin.
+
+### Desktop widgets
+
+Clock, calendar and media player are ordinary Plasma widgets placed on the
+desktop rather than in a panel. They arrive stacked in a corner: enter Edit
+Mode, right click the desktop, to drag and size them. The weather widget comes
+from `plasma-widgets-addons`, which the installer adds.
+
 ### Option 2: Caelestia
 
 [Caelestia](https://github.com/ladybug-me/caelestia-dots-kde) replaces Plasma's

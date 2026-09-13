@@ -27,7 +27,9 @@
 #   - install_desktop_switcher: The desktop-mode command
 #   - install_panel: Create the floating panel
 #   - apply_window_decoration: Darkly if present, Breeze otherwise
+#   - install_plasma_theme: The generated panel and popup shapes
 #   - setup_krunner: KRunner plugin, lives in krunner_setup.sh
+#   - setup_panel_extras: Panel Colorizer and desktop widgets
 #
 # Dependencies:
 #   - logging.sh (for log_info, log_success, log_error, log_warning)
@@ -100,7 +102,11 @@ setup_desktop() {
 
     apply_window_decoration
 
+    install_plasma_theme
+
     setup_krunner
+
+    setup_panel_extras
 
     apply_palette_settings
 
@@ -716,6 +722,40 @@ bind_shortcut() {
     log_success "$combo bound to $description"
 }
 
+# plasmashell reads the list of available themes once, at startup, so a theme
+# installed underneath a running session is invisible until it is restarted.
+# Applying it appears to work - plasmarc records the name - while nothing
+# changes on screen and no plasma_theme_<name>.kcache is ever written.
+install_plasma_theme() {
+    local src="$DOTFILES_DIR/config/plasma/desktoptheme"
+    local dest="$HOME/.local/share/plasma/desktoptheme"
+    local theme count=0
+
+    if [ ! -d "$src" ]; then
+        log_warning "No Plasma theme at config/plasma/"
+        return 0
+    fi
+
+    mkdir -p "$dest"
+
+    for theme in "$src"/*/; do
+        [ -d "$theme" ] || continue
+        if cp -r "$theme" "$dest/"; then
+            count=$((count + 1))
+        fi
+    done
+
+    [ "$count" -eq 0 ] && return 0
+
+    if systemctl --user is-active plasma-plasmashell.service &> /dev/null; then
+        run_logged systemctl --user restart plasma-plasmashell.service
+        log_success "$count Plasma themes installed, plasmashell restarted"
+    else
+        log_success "$count Plasma themes installed"
+        add_post_install_note "Log out and back in for the Plasma theme to be picked up: plasmashell only scans for themes at startup."
+    fi
+}
+
 # Breeze in Plasma 6.6 has no corner radius setting at all, so rounded windows
 # mean a different decoration. Darkly is a Breeze fork that rounds them and is
 # what Caelestia uses, but it is not in apt on Ubuntu 26.04 and only ends up
@@ -907,7 +947,12 @@ kwriteconfig6 --file breezerc --group Common --key ShadowColor "$shadow"
 # the panel, the popups and the notifications, all of which breeze-dark leaves
 # square. It ships a dark variant only, so it stands in for breeze-dark and
 # never for breeze-light.
-if [ "$plasma" = "breeze-dark" ] && [ -d /usr/share/plasma/desktoptheme/darkly ]; then
+# Nach0_0 is this repo's own, and it takes its colours from whatever scheme is
+# active, so it suits the light palette as well as the dark ones. Darkly is the
+# fallback for a dark palette only: it ships no light variant.
+if [ -d "$HOME/.local/share/plasma/desktoptheme/Nach0_0" ]; then
+    plasma="Nach0_0"
+elif [ "$plasma" = "breeze-dark" ] && [ -d /usr/share/plasma/desktoptheme/darkly ]; then
     plasma="darkly"
 fi
 

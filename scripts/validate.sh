@@ -73,7 +73,7 @@ done
 # then the function it was supposed to define is simply not there.
 missing=""
 for fn in init_logging install_base_packages configure_git setup_terminal \
-          setup_apps setup_languages setup_docker setup_databases setup_desktop install_caelestia setup_login_screen setup_krunner; do
+          setup_apps setup_languages setup_docker setup_databases setup_desktop install_caelestia setup_login_screen setup_krunner setup_panel_extras; do
     if ! bash -c "
         DOTFILES_DIR='$REPO_DIR'
         for f in \"\$DOTFILES_DIR\"/scripts/*.sh; do
@@ -226,8 +226,9 @@ head_ "Generated assets"
 # The wallpapers and the login backgrounds are derived from the Kitty
 # palettes, so a new theme that skips the generators is caught here.
 if python3 "$REPO_DIR/scripts/generate_wallpapers.py" --check &&
-    python3 "$REPO_DIR/scripts/generate_login_backgrounds.py" --check; then
-    pass "every wallpaper and login background is present"
+    python3 "$REPO_DIR/scripts/generate_login_backgrounds.py" --check &&
+    python3 "$REPO_DIR/scripts/generate_plasma_theme.py" --check; then
+    pass "wallpapers, login backgrounds and the Plasma theme are present"
 else
     fail "run the generators in scripts/ to regenerate"
 fi

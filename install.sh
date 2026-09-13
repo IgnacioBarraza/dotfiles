@@ -104,6 +104,7 @@ source "$DOTFILES_DIR/scripts/docker_setup.sh"
 source "$DOTFILES_DIR/scripts/databases_setup.sh"
 source "$DOTFILES_DIR/scripts/caelestia_setup.sh"
 source "$DOTFILES_DIR/scripts/krunner_setup.sh"
+source "$DOTFILES_DIR/scripts/panel_setup.sh"
 source "$DOTFILES_DIR/scripts/desktop_setup.sh"
 source "$DOTFILES_DIR/scripts/login_setup.sh"
 
