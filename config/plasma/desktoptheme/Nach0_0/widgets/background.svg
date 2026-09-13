@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42"
+     viewBox="0 0 42 42">
+  <defs>
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Background { color: #eff0f1; }
+      .ColorScheme-Text { color: #232629; }
+      .ColorScheme-Highlight { color: #3daee9; }
+    </style>
+  </defs>
+  <path id="topleft" d="M 0,14 A 14,14 0 0 1 14,0 L 14,14 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="0.82"/>
+  <path id="topright" d="M 28,0 A 14,14 0 0 1 42,14 L 28,14 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="0.82"/>
+  <path id="bottomleft" d="M 0,28 A 14,14 0 0 0 14,42 L 14,28 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="0.82"/>
+  <path id="bottomright" d="M 42,28 A 14,14 0 0 1 28,42 L 28,28 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="0.82"/>
+  <rect id="top" x="14" y="0" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="0.82"/>
+  <rect id="bottom" x="14" y="28" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="0.82"/>
+  <rect id="left" x="0" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="0.82"/>
+  <rect id="right" x="28" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="0.82"/>
+  <rect id="center" x="14" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="0.82"/>
+  <path id="mask-topleft" d="M 0,14 A 14,14 0 0 1 14,0 L 14,14 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="1.0"/>
+  <path id="mask-topright" d="M 28,0 A 14,14 0 0 1 42,14 L 28,14 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="1.0"/>
+  <path id="mask-bottomleft" d="M 0,28 A 14,14 0 0 0 14,42 L 14,28 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="1.0"/>
+  <path id="mask-bottomright" d="M 42,28 A 14,14 0 0 1 28,42 L 28,28 Z" class="ColorScheme-Background"
+        fill="currentColor" fill-opacity="1.0"/>
+  <rect id="mask-top" x="14" y="0" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="1.0"/>
+  <rect id="mask-bottom" x="14" y="28" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="1.0"/>
+  <rect id="mask-left" x="0" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="1.0"/>
+  <rect id="mask-right" x="28" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="1.0"/>
+  <rect id="mask-center" x="14" y="14" width="14" height="14"
+        class="ColorScheme-Background" fill="currentColor" fill-opacity="1.0"/>
+  <rect id="hint-top-margin" x="0" y="0" width="7" height="7" opacity="0"/>
+  <rect id="hint-bottom-margin" x="0" y="0" width="7" height="7" opacity="0"/>
+  <rect id="hint-left-margin" x="0" y="0" width="7" height="7" opacity="0"/>
+  <rect id="hint-right-margin" x="0" y="0" width="7" height="7" opacity="0"/>
+</svg>

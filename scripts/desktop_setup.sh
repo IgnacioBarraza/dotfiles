@@ -25,6 +25,7 @@
 #   - install_wallpaper_shortcut: Bind Meta+K to the rotator
 #   - install_wallpaper_menu: Grid picker on Meta+Shift+K
 #   - install_desktop_switcher: The desktop-mode command
+#   - install_tabbox_switcher: The alt-tab-style command
 #   - install_panel: Create the floating panel
 #   - apply_window_decoration: Darkly if present, Breeze otherwise
 #   - install_plasma_theme: The generated panel and popup shapes
@@ -99,6 +100,8 @@ setup_desktop() {
     install_wallpaper_menu
 
     install_panel
+
+    install_tabbox_switcher
 
     apply_window_decoration
 
@@ -175,6 +178,47 @@ panel_count() {
 set_hidden() {
     [ -f "$1" ] || return 0
     kwriteconfig6 --file "$1" --group "Desktop Entry" --key Hidden "$2"
+}
+
+# Its shortcuts outlive its shell. kglobalaccel keeps a plain component's
+# registrations across restarts even with no process behind them - that is how
+# it preserves bindings between sessions - so caelestia-shell goes on holding
+# Alt+Tab, Meta+Tab and Meta+W after the shell is gone, and KWin is refused them
+# at startup.
+#
+# The group is dropped rather than emptied, and each shortcut is unregistered
+# over D-Bus as well so the keys are free in this session and not only the next.
+# Caelestia's own source of truth is ~/.config/caelestia/keybinds.json, which
+# its shell reads and re-registers from on start, so switching back loses
+# nothing.
+release_caelestia_shortcuts() {
+    local rc="$HOME/.config/kglobalshortcutsrc"
+    local name tmp
+
+    [ -f "$rc" ] || return 0
+    grep -q '^\[caelestia-shell\]$' "$rc" || return 0
+
+    if command -v gdbus > /dev/null 2>&1; then
+        while IFS='=' read -r name _; do
+            case "$name" in
+            caelestia-shortcut-*)
+                gdbus call --session --dest org.kde.kglobalaccel \
+                    --object-path /kglobalaccel \
+                    --method org.kde.KGlobalAccel.unregister \
+                    "caelestia-shell" "$name" > /dev/null 2>&1 || true
+                ;;
+            esac
+        done < <(awk '/^\[/ { in_group = ($0 == "[caelestia-shell]") } in_group && /=/' "$rc")
+    fi
+
+    tmp="$(mktemp)" || return 1
+
+    awk '
+        /^\[/ { drop = ($0 == "[caelestia-shell]") }
+        !drop
+    ' "$rc" > "$tmp" && mv "$tmp" "$rc" || { rm -f "$tmp"; return 1; }
+
+    echo "Released Caelestia's hold on Alt+Tab, Meta+Tab and Meta+W"
 }
 
 # Caelestia does not ask KWin to share Alt+Tab, Meta+Tab, Meta+W and the
@@ -367,7 +411,10 @@ status)
     else
         echo "Mode: unknown (never switched)"
     fi
-    pgrep -f 'quickshell.*caelestia' > /dev/null && echo "  Caelestia shell: running"
+    # -x on the process name: matching the full command line with -f finds
+    # this script's own invocation and reports the shell as running when it is
+    # not.
+    pgrep -x quickshell > /dev/null && echo "  Caelestia shell: running"
     echo "  Plasma panels: $(evaluate 'print(panels().length)')"
     ;;
 *)
@@ -380,6 +427,81 @@ SWITCH
     chmod +x "$target"
 
     log_success "desktop-mode installed to $target"
+}
+
+# The Alt+Tab switcher is a QML package like any other, and kwin-addons brings
+# five more of them. Which one is active is one line in kwinrc, so it gets the
+# same treatment as the palette and the panel preset: a small command rather
+# than a trip through System Settings.
+install_tabbox_switcher() {
+    local target="$HOME/.local/bin/alt-tab-style"
+
+    mkdir -p "$HOME/.local/bin"
+
+    cat > "$target" <<'TABBOX'
+#!/bin/bash
+# List and apply KWin Alt+Tab switcher layouts.
+# Installed by the dotfiles; see scripts/desktop_setup.sh.
+
+set -u
+
+DIRS=(
+    "$HOME/.local/share/kwin/tabbox"
+    /usr/share/kwin/tabbox
+    /usr/share/kwin-wayland/tabbox
+)
+
+list_styles() {
+    local dir entry
+    for dir in "${DIRS[@]}"; do
+        [ -d "$dir" ] || continue
+        for entry in "$dir"/*/; do
+            [ -d "$entry" ] || continue
+            basename "$entry"
+        done
+    done | sort -u
+}
+
+exists() {
+    local dir
+    for dir in "${DIRS[@]}"; do
+        [ -d "$dir/$1" ] && return 0
+    done
+    return 1
+}
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: alt-tab-style <name>"
+    echo ""
+    echo "  breeze   the built-in default"
+    echo ""
+    echo "Available:"
+    list_styles | sed 's/^/  /'
+    echo ""
+    echo "Current: $(kreadconfig6 --file kwinrc --group TabBox --key LayoutName || echo breeze)"
+    exit 0
+fi
+
+if [ "$1" = "breeze" ]; then
+    # The default is compiled into KWin, so it is selected by clearing the key
+    # rather than by naming a package.
+    kwriteconfig6 --file kwinrc --group TabBox --key LayoutName --delete
+else
+    exists "$1" || {
+        echo "Unknown switcher: $1" >&2
+        echo "Run alt-tab-style with no arguments to list them." >&2
+        exit 1
+    }
+    kwriteconfig6 --file kwinrc --group TabBox --key LayoutName "$1"
+fi
+
+qdbus6 org.kde.KWin /KWin reconfigure > /dev/null 2>&1
+
+echo "Alt+Tab switcher: $1"
+TABBOX
+
+    chmod +x "$target"
+    log_success "alt-tab-style installed"
 }
 
 # Built through Plasma's scripting API over D-Bus rather than by writing
