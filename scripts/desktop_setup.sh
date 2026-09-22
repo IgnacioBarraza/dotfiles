@@ -226,76 +226,104 @@ release_caelestia_shortcuts() {
 # meant to record what it took so it can hand them back, and it stays empty, so
 # nothing gives them back on the way out.
 #
-# An entry is active,default,description. The description can hold commas of
-# its own, so only the first two fields are split off, and alternatives within
-# a field are separated by a literal \t.
+# Restoring them by editing kglobalshortcutsrc does not work: KWin holds that
+# file open and rewrites it from its own memory, so the edit survives until the
+# next save and no further. setShortcut is refused too - KWin registers its own
+# actions and will not have them reassigned from outside. setForeignShortcut is
+# the call meant for exactly this, and it updates both the running KWin and the
+# file.
 #
-# The rule is: restore when what is active is a strict subset of what the entry
-# declares as its default. That catches an entry emptied outright ("\t"), one
-# left half-cleared ("Meta+Shift+Tab\t") and one set to "none", while leaving a
-# binding the user actually chose alone, since that is not a subset.
+# An entry is active,default,description; the description can hold commas of its
+# own, and alternatives within a field are separated by a literal tab. The rule
+# is to restore when what is active is a strict subset of what the entry
+# declares as its default, which catches an entry emptied outright, one left
+# half-cleared and one set to "none", while leaving a binding the user chose
+# alone, since that is not a subset.
 restore_kwin_shortcuts() {
     local rc="$HOME/.config/kglobalshortcutsrc"
-    local tmp count
 
     [ -f "$rc" ] || return 0
-    tmp="$(mktemp)" || return 1
 
-    awk '
-    function slots(spec, out,   n, i, parts, kept) {
-        n = split(spec, parts, "\\\\t")
-        kept = 0
-        for (i = 1; i <= n; i++) {
-            if (parts[i] != "" && parts[i] != "none") {
-                out[parts[i]] = 1
-                kept++
-            }
-        }
-        return kept
-    }
-    /^\[/ { inkwin = ($0 == "[kwin]") }
-    {
-        if (!inkwin || $0 !~ /=/) { print; next }
+    python3 - "$rc" <<'RESTORE'
+import re
+import subprocess
+import sys
 
-        eq = index($0, "=")
-        key = substr($0, 1, eq)
-        rest = substr($0, eq + 1)
+MODS = {"meta": 0x10000000, "ctrl": 0x04000000, "control": 0x04000000,
+        "alt": 0x08000000, "shift": 0x02000000}
+NAMED = {"tab": 0x01000001, "backtab": 0x01000002, "return": 0x01000004,
+         "enter": 0x01000005, "space": 0x20, "escape": 0x01000000,
+         "backspace": 0x01000003, "delete": 0x01000007, "insert": 0x01000006,
+         "home": 0x01000010, "end": 0x01000011, "print": 0x01000009,
+         "left": 0x01000012, "up": 0x01000013, "right": 0x01000014,
+         "down": 0x01000015, "pgup": 0x01000016, "pgdown": 0x01000017}
 
-        c1 = index(rest, ",")
-        if (!c1) { print; next }
-        active = substr(rest, 1, c1 - 1)
-        tail = substr(rest, c1 + 1)
 
-        c2 = index(tail, ",")
-        if (!c2) { print; next }
-        fallback = substr(tail, 1, c2 - 1)
-        desc = substr(tail, c2 + 1)
+def keycode(spec):
+    """The integer Qt uses for a shortcut such as "Meta+Tab"."""
+    parts = spec.split("+")
+    # A literal "+" as the key leaves an empty last field.
+    key = parts[-1] if parts[-1] else "+"
+    value = 0
+    for mod in parts[:-1]:
+        bit = MODS.get(mod.strip().lower())
+        if bit is None:
+            return None
+        value |= bit
+    key = key.strip()
+    low = key.lower()
+    if low in NAMED:
+        return value | NAMED[low]
+    if len(key) == 1:
+        return value | ord(key.upper())
+    if low.startswith("f") and low[1:].isdigit() and 1 <= int(low[1:]) <= 35:
+        return value | (0x01000030 + int(low[1:]) - 1)
+    return None
 
-        delete A; delete D
-        na = slots(active, A)
-        nd = slots(fallback, D)
 
-        subset = (na < nd)
-        for (k in A) { if (!(k in D)) subset = 0 }
+def alternatives(field):
+    return [p for p in field.split("\\t") if p and p != "none"]
 
-        if (subset && nd > 0) {
-            printf "%s%s,%s,%s\n", key, fallback, fallback, desc
-            restored++
-        } else {
-            print
-        }
-    }
-    END { printf("%d", restored) > "/dev/stderr" }
-    ' "$rc" > "$tmp" 2> "$tmp.count"
 
-    if [ -s "$tmp" ]; then
-        mv "$tmp" "$rc"
-        count="$(cat "$tmp.count" 2>/dev/null)"
-        [ "${count:-0}" -gt 0 ] &&
-            echo "Restored $count KWin shortcuts (Alt+Tab, Meta+W, desktops)"
-    fi
+restored = 0
+in_kwin = False
 
-    rm -f "$tmp" "$tmp.count"
+for line in open(sys.argv[1]):
+    line = line.rstrip("\n")
+    if line.startswith("["):
+        in_kwin = line == "[kwin]"
+        continue
+    if not in_kwin or "=" not in line:
+        continue
+
+    name, _, rest = line.partition("=")
+    fields = rest.split(",", 2)
+    if len(fields) < 2:
+        continue
+
+    active, fallback = alternatives(fields[0]), alternatives(fields[1])
+    if not fallback or len(active) >= len(fallback):
+        continue
+    if any(a not in fallback for a in active):
+        continue
+
+    keys = [keycode(a) for a in fallback]
+    if any(k is None for k in keys):
+        continue
+
+    action = '["kwin", "%s", "KWin", "%s"]' % (name, name)
+    result = subprocess.run(
+        ["gdbus", "call", "--session", "--dest", "org.kde.kglobalaccel",
+         "--object-path", "/kglobalaccel",
+         "--method", "org.kde.KGlobalAccel.setForeignShortcut",
+         action, "[%s]" % ", ".join(str(k) for k in keys)],
+        capture_output=True)
+    if result.returncode == 0:
+        restored += 1
+
+if restored:
+    print("Restored %d KWin shortcuts (Alt+Tab, Meta+W, desktops)" % restored)
+RESTORE
 }
 
 rebuild_cache() {
