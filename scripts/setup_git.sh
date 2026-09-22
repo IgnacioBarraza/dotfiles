@@ -37,7 +37,7 @@ configure_git() {
         local current_email=$(git config --global --get user.email)
         log_info "Git user already configured: $current_name <$current_email>"
         
-        read -rp "Do you want to update the user info? [y/N]: " update_user
+        update_user="$(ask git_update_user "Do you want to update the user info? [y/N]: " n)"
         case "$update_user" in
             [yY][eE][sS] | [yY])
                 set_git_user
@@ -58,7 +58,7 @@ configure_git() {
     log_info "=== Git Configuration Summary ==="
     git config --global --list | grep -E "user\.(name|email)|core\.(editor|autocrlf)|pull\.rebase|init\.defaultBranch" | tee -a "$LOG"
     
-    read -rp "Do you want to generate an SSH key for GitHub/GitLab? [y/N]: " generate_ssh
+    generate_ssh="$(ask git_ssh_key "Do you want to generate an SSH key for GitHub/GitLab? [y/N]: " n)"
     case "$generate_ssh" in
         [yY][eE][sS] | [yY])
             generate_ssh_key
@@ -75,7 +75,7 @@ set_git_user() {
     log_info "Setting Git user information..."
     
     # Get user name
-    read -rp "Enter your Git user name (e.g., 'Your Name'): " git_name
+    git_name="$(ask git_name "Enter your Git user name (e.g., 'Your Name'): " "")"
     if [ -n "$git_name" ]; then
         git config --global user.name "$git_name"
         log_success "Git user name set: $git_name"
@@ -84,7 +84,7 @@ set_git_user() {
     fi
     
     # Get user email
-    read -rp "Enter your Git email (e.g., 'you@email.com'): " git_email
+    git_email="$(ask git_email "Enter your Git email (e.g., 'you@email.com'): " "")"
     if [ -n "$git_email" ]; then
         git config --global user.email "$git_email"
         log_success "Git email set: $git_email"
@@ -138,7 +138,7 @@ generate_ssh_key() {
 
     if [ -f "$key_file" ] || [ -f "$HOME/.ssh/id_rsa" ]; then
         log_info "An SSH key already exists."
-        read -rp "Generate a new one? This overwrites the existing key [y/N]: " generate_new
+        generate_new="$(ask git_ssh_overwrite "Generate a new one? This overwrites the existing key [y/N]: " n)"
 
         case "$generate_new" in
         [yY][eE][sS] | [yY])
@@ -163,18 +163,18 @@ generate_ssh_key() {
         local git_email
         git_email="$(git config --global --get user.email)"
         log_info "Git email detected: $git_email"
-        read -rp "Use this email for the SSH key? [Y/n]: " use_git_email
+        use_git_email="$(ask git_ssh_use_git_email "Use this email for the SSH key? [Y/n]: " y)"
 
         case "$use_git_email" in
         [nN][oO] | [nN])
-            read -rp "Enter the email for the SSH key: " ssh_email
+            ssh_email="$(ask git_ssh_email "Enter the email for the SSH key: " "")"
             ;;
         *)
             ssh_email="$git_email"
             ;;
         esac
     else
-        read -rp "Enter the email for the SSH key: " ssh_email
+        ssh_email="$(ask git_ssh_email "Enter the email for the SSH key: " "")"
     fi
 
     if [ -z "$ssh_email" ]; then

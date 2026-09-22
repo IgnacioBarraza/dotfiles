@@ -42,7 +42,7 @@ setup_panel_extras() {
         return 0
     fi
 
-    read -rp "Do you want the floating panel islands (Panel Colorizer)? [y/N]: " choice
+    choice="$(ask panel_islands "Do you want the floating panel islands (Panel Colorizer)? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY])
@@ -55,7 +55,7 @@ setup_panel_extras() {
         ;;
     esac
 
-    read -rp "Do you want clock, calendar, weather and media widgets on the desktop? [y/N]: " choice
+    choice="$(ask desktop_widgets "Do you want clock, calendar, weather and media widgets on the desktop? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY]) install_desktop_widgets ;;

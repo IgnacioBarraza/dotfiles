@@ -321,3 +321,60 @@ print_post_install_summary() {
 
     echo ""
 }
+
+# ---------------------------------------------
+# Prompts
+# ---------------------------------------------
+
+# Look a key up in the answers file. Empty when the file or the key is absent,
+# which is what makes the built-in default apply.
+answer_for() {
+    local key="$1"
+    local file="${DOTFILES_ANSWERS:-$DOTFILES_DIR/config/answers.conf}"
+
+    [ -f "$file" ] || return 0
+
+    awk -F= -v want="$key" '
+        /^[[:space:]]*(#|$)/ { next }
+        {
+            key = $1
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key != want) next
+            sub(/^[^=]*=[[:space:]]*/, "")
+            # A trailing comment is part of the line, not of the value. Only
+            # one preceded by whitespace counts, so a value could still hold a
+            # "#" if one ever needed to.
+            sub(/[[:space:]]+#.*$/, "")
+            sub(/[[:space:]]+$/, "")
+            print
+            exit
+        }
+    ' "$file"
+}
+
+# Ask a question, or answer it from the configuration when nobody is watching.
+#
+# The prompt goes to stderr and the answer to stdout, so a caller can capture
+# one without the other. `read -rp` already writes its prompt to stderr, so the
+# two modes read the same way in a log.
+#
+# Precedence is answers file, then the built-in default. The file wins in both
+# modes, so an answer set there also pre-fills an interactive run.
+ask() {
+    local key="$1"
+    local prompt="$2"
+    local default="$3"
+    local configured answer
+
+    configured="$(answer_for "$key")"
+    [ -n "$configured" ] && default="$configured"
+
+    if [ "${DOTFILES_UNATTENDED:-0}" = "1" ]; then
+        printf '%s%s\n' "$prompt" "$default" >&2
+        printf '%s\n' "$default"
+        return 0
+    fi
+
+    read -rp "$prompt" answer
+    printf '%s\n' "${answer:-$default}"
+}

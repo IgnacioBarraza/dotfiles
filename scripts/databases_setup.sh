@@ -68,7 +68,7 @@ install_database_clients() {
     echo "  Type 'all' for everything, or leave empty to skip."
     echo ""
 
-    read -rp "Your choice: " selection
+    selection="$(ask databases "Your choice: " "")"
 
     if [ -z "${selection// /}" ]; then
         log_info "Skipping database setup"

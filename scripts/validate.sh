@@ -107,6 +107,23 @@ for shell in bash sh; do
     fi
 done
 
+head_ "Unattended answers"
+# Every ask() call has to have a key in the answers file, or an unattended run
+# silently falls back to the built-in default for it, which is how a question
+# ends up answered "no" without anyone deciding that.
+missing=""
+for key in $(grep -rho '\$(ask [a-z_]*' "$REPO_DIR"/install.sh "$REPO_DIR"/scripts/*.sh |
+    sed 's/.*ask //' | sort -u); do
+    grep -qE "^[[:space:]]*$key[[:space:]]*=" "$REPO_DIR/config/answers.conf" ||
+        missing="$missing $key"
+done
+
+if [ -z "$missing" ]; then
+    pass "every prompt has an answer in config/answers.conf"
+else
+    fail "config/answers.conf is missing:$missing"
+fi
+
 head_ "Config files parse"
 python3 - <<'PY' && pass "TOML and JSONC" || fail "TOML or JSONC"
 import json, re, sys, glob

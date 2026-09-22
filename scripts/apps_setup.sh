@@ -55,7 +55,7 @@ install_browser() {
     echo "  5) Skip"
     echo ""
 
-    read -rp "Enter your choice [1|2|3|4|5]: " choice
+    choice="$(ask browser "Enter your choice [1|2|3|4|5]: " 5)"
 
     case "$choice" in
     1)
@@ -202,7 +202,7 @@ install_dev_apps() {
     echo "  Type 'all' for everything, or leave empty to skip."
     echo ""
 
-    read -rp "Your choice: " selection
+    selection="$(ask apps "Your choice: " "")"
 
     if [ -z "${selection// /}" ]; then
         log_info "Skipping application installation"

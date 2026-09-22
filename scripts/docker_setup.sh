@@ -26,7 +26,7 @@ LAZYDOCKER_VERSION="0.25.2"
 setup_docker() {
     log_info "Starting Docker setup"
 
-    read -rp "Do you want to install Docker? [y/N]: " choice
+    choice="$(ask docker "Do you want to install Docker? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY]) ;;
@@ -40,7 +40,7 @@ setup_docker() {
 
     configure_docker_group
 
-    read -rp "Do you want to install lazydocker (terminal UI for containers)? [y/N]: " lazy
+    lazy="$(ask lazydocker "Do you want to install lazydocker (terminal UI for containers)? [y/N]: " n)"
 
     case "$lazy" in
     [yY][eE][sS] | [yY])

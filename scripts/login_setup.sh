@@ -60,7 +60,7 @@ setup_login_screen() {
     echo "  4) Skip"
     echo ""
 
-    read -rp "Enter your choice [1|2|3|4]: " choice
+    choice="$(ask login_palette "Enter your choice [1|2|3|4]: " 4)"
 
     local palette
     case "$choice" in
@@ -172,7 +172,7 @@ select_sddm_background() {
         echo ""
     } >&2
 
-    read -rp "Enter your choice [1-${#images[@]}]: " choice
+    choice="$(ask login_background "Enter your choice [1-${#images[@]}]: " 1)"
 
     case "$choice" in
     "" | *[!0-9]*) choice=1 ;;

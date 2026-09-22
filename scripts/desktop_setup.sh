@@ -71,7 +71,7 @@ setup_desktop() {
     echo "  3) Skip"
     echo ""
 
-    read -rp "Enter your choice [1|2|3]: " choice
+    choice="$(ask desktop "Enter your choice [1|2|3]: " 3)"
 
     case "$choice" in
     1) ;;

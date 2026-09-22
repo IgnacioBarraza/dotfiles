@@ -55,7 +55,7 @@ setup_terminal() {
 install_zsh() {
     log_info "Starting ZSH setup and installation"
 
-    read -rp "Do you want to install ZSH? [y/N]: " confirm
+    confirm="$(ask zsh "Do you want to install ZSH? [y/N]: " n)"
 
     case "$confirm" in
     [yY][eE][sS] | [yY])
@@ -108,7 +108,7 @@ install_zsh() {
 configure_shell() {
     log_info "Starting shell configuration..."
 
-    read -rp "Do you want to configure the default shell with starship and other plugins? [y/N]: " choice
+    choice="$(ask shell_plugins "Do you want to configure the default shell with starship and other plugins? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY])
@@ -250,7 +250,7 @@ install_terminal() {
     echo "  3) Skip (use default terminal)"
     echo ""
 
-    read -rp "Enter your choice [1|2|3]: " term_choice
+    term_choice="$(ask terminal "Enter your choice [1|2|3]: " 3)"
 
     case "$term_choice" in
         1)
@@ -291,7 +291,7 @@ install_selected_terminal() {
 install_pokemon_art() {
     log_info "Starting with terminal customization"
 
-    read -rp "Do you want to customize the terminal with Pokemon Art? [y/N]: " choice
+    choice="$(ask pokemon "Do you want to customize the terminal with Pokemon Art? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY])
@@ -416,7 +416,7 @@ configure_alacritty() {
 install_fonts() {
     log_info "Starting font installation..."
 
-    read -rp "Do you want to install the required fonts (FiraCode Nerd Font + Noto CJK)? [y/N]: " choice
+    choice="$(ask fonts "Do you want to install the required fonts (FiraCode Nerd Font + Noto CJK)? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY]) ;;

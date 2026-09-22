@@ -77,6 +77,7 @@ print_info() {
     Option:
     • --desktop     Run only the desktop theme and login screen steps
     • --ssh         Run only the SSH key step, then print the public key
+    • --unattended  Answer every prompt from config/answers.conf and never stop
     • --dry-run     Print what would be done and exit (non-interactive)
     • -h, --help    Show this message and exit
 
@@ -112,6 +113,8 @@ source "$DOTFILES_DIR/scripts/login_setup.sh"
 DO_DRY_RUN=0
 DO_DESKTOP_ONLY=0
 DO_SSH_ONLY=0
+DOTFILES_UNATTENDED=0
+export DOTFILES_UNATTENDED
 SHOW_HELP=0
 
 for arg in "$@"; do
@@ -127,6 +130,9 @@ for arg in "$@"; do
         ;;
     --ssh)
         DO_SSH_ONLY=1
+        ;;
+    --unattended | --yes | -y)
+        DOTFILES_UNATTENDED=1
         ;;
     esac
 done
@@ -172,7 +178,8 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     exit 0
 fi
 
-if [ "$DO_DESKTOP_ONLY" != "1" ] && [ "$DO_SSH_ONLY" != "1" ]; then
+if [ "$DO_DESKTOP_ONLY" != "1" ] && [ "$DO_SSH_ONLY" != "1" ] &&
+    [ "$DOTFILES_UNATTENDED" != "1" ]; then
 echo -e "\n\n"
 print_color $WARNING "
     █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -202,7 +209,7 @@ print_color $WARNING "
 "
 echo -e "\n\n"
 
-read -rp "$YELLOW Do you want to continue with the installation using this scripts? [y/N]: " confirm
+confirm="$(ask continue "$YELLOW Do you want to continue with the installation using this scripts? [y/N]: " n)"
 case "$confirm" in
 [yY][eE][sS] | [yY])
     echo

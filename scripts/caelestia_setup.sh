@@ -55,7 +55,7 @@ install_caelestia() {
 
 NOTICE
 
-    read -rp "Do you want to install Caelestia? [y/N]: " choice
+    choice="$(ask caelestia "Do you want to install Caelestia? [y/N]: " n)"
 
     case "$choice" in
     [yY][eE][sS] | [yY]) ;;

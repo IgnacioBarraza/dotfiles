@@ -73,7 +73,7 @@ install_language_stack() {
     echo "  Type 'all' for everything, or leave empty to skip."
     echo ""
 
-    read -rp "Your choice: " selection
+    selection="$(ask languages "Your choice: " "")"
 
     if [ -z "${selection// /}" ]; then
         log_info "Skipping language installation"

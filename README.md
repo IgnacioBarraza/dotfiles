@@ -660,9 +660,45 @@ which goes to `~/.local/bin/`.
 | You only want to re-apply the configs | `install.sh`   | Re-run it and skip the steps you don't need |
 | You only want the desktop and login   | `install.sh`   | `./install.sh --desktop`                    |
 | You only want an SSH key for GitHub   | `install.sh`   | `./install.sh --ssh`                        |
+| You want it to run without you        | `install.sh`   | `./install.sh --unattended`                 |
 
 `bootstrap.sh` only clones the repository and then hands over to `install.sh`.
 Once you have a clone, you never need it again.
+
+## 🤖 Unattended install
+
+```bash
+./install.sh --unattended
+```
+
+Never stops to ask. Every prompt is answered from `config/answers.conf`, which
+is also a preferences file: in a normal run those values pre-fill the prompts,
+so pressing Enter takes the answer from there.
+
+Point it somewhere else with `DOTFILES_ANSWERS=/path/to/answers.conf`, and the
+repo's own file stays untouched.
+
+What it does by default:
+
+| | |
+| :--- | :--- |
+| Terminal | Kitty, ZSH, Starship, fonts, Pokémon art |
+| Browser | Zen |
+| Applications | All nine |
+| Languages | Node, Python tooling, the JVM stack and Go |
+| Containers | Docker, lazydocker, the database clients and the compose stack |
+| Desktop | The Plasma theme, panel islands, desktop widgets |
+| Login screen | Kanagawa, with its torii |
+
+Two things it deliberately does not do:
+
+- **Git user and email are left empty**, so the Git step is skipped rather than
+  committing as somebody else. Fill them in the answers file if you want them.
+- **No SSH key is generated.** A key made while nobody is watching is a key
+  nobody remembers adding to GitHub. Run `./install.sh --ssh` when you want one.
+
+CI checks that every prompt in the scripts has a matching key in the answers
+file, so a question added later cannot quietly fall back to "no".
 
 ## ✨ Auto install
 
