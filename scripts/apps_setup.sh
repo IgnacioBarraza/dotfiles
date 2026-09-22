@@ -50,12 +50,13 @@ install_browser() {
     log_info "Select a browser to install"
     echo ""
     echo "  1) Brave (privacy focused, Chromium based)"
-    echo "  2) Google Chrome"
-    echo "  3) Keep Firefox (already installed on Ubuntu)"
-    echo "  4) Skip"
+    echo "  2) Zen (Firefox based, vertical tabs and workspaces)"
+    echo "  3) Google Chrome"
+    echo "  4) Keep Firefox (already installed on Ubuntu)"
+    echo "  5) Skip"
     echo ""
 
-    read -rp "Enter your choice [1|2|3|4]: " choice
+    read -rp "Enter your choice [1|2|3|4|5]: " choice
 
     case "$choice" in
     1)
@@ -72,6 +73,9 @@ install_browser() {
             log_error "Failed to install Brave"
         ;;
     2)
+        install_zen_browser
+        ;;
+    3)
         if pkg_installed google-chrome-stable; then
             log_success "Google Chrome is already installed"
             return 0
@@ -84,16 +88,91 @@ install_browser() {
             log_success "Google Chrome installed" ||
             log_error "Failed to install Google Chrome"
         ;;
-    3)
+    4)
         log_info "Keeping Firefox, which Ubuntu ships as a snap"
         ;;
-    4)
+    5)
         log_info "Skipping browser installation"
         ;;
     *)
         log_warning "Invalid choice. Skipping browser installation"
         ;;
     esac
+}
+
+# Zen ships no .deb and runs no apt repository: a tarball from its GitHub
+# releases is the only Linux build. Installed the way JetBrains Toolbox is,
+# into /opt with a link on PATH, plus a desktop entry so it shows up in the
+# launcher and can be picked as the default browser.
+install_zen_browser() {
+    local arch tmp extracted
+
+    if [ -x /opt/zen/zen-bin ]; then
+        log_success "Zen is already installed"
+        return 0
+    fi
+
+    case "$(uname -m)" in
+    x86_64) arch="x86_64" ;;
+    aarch64 | arm64) arch="aarch64" ;;
+    *)
+        log_error "Zen publishes no build for $(uname -m)"
+        return 1
+        ;;
+    esac
+
+    tmp="$(mktemp -d)" || return 1
+
+    log_info "Downloading Zen ($arch)..."
+
+    if ! curl -fL --retry 3 -o "$tmp/zen.tar.xz" \
+        "https://github.com/zen-browser/desktop/releases/latest/download/zen.linux-$arch.tar.xz" \
+        >> "$LOG" 2>&1; then
+        log_error "Could not download Zen"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    if ! tar -xJf "$tmp/zen.tar.xz" -C "$tmp" >> "$LOG" 2>&1; then
+        log_error "Could not extract Zen"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    # The archive holds a single zen/ directory, but it is found rather than
+    # assumed so a change upstream fails loudly instead of installing nothing.
+    extracted="$(find "$tmp" -maxdepth 1 -type d -name zen | head -1)"
+
+    if [ -z "$extracted" ] || [ ! -x "$extracted/zen-bin" ]; then
+        log_error "Unexpected archive layout, could not find zen-bin"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    sudo rm -rf /opt/zen
+    sudo mv "$extracted" /opt/zen
+    sudo ln -sfn /opt/zen/zen-bin /usr/local/bin/zen
+    rm -rf "$tmp"
+
+    sudo tee /usr/share/applications/zen.desktop > /dev/null <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Zen Browser
+Comment=Welcome to a calmer internet
+Exec=/opt/zen/zen-bin %u
+Icon=/opt/zen/browser/chrome/icons/default/default128.png
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=zen
+DESKTOP
+
+    if command -v update-desktop-database &> /dev/null; then
+        sudo update-desktop-database /usr/share/applications &> /dev/null || true
+    fi
+
+    log_success "Zen installed to /opt/zen"
+    add_post_install_note "Zen is installed but not the default browser. Set it in System Settings > Default Applications, or with: xdg-settings set default-web-browser zen.desktop"
 }
 
 # ---------------------------------------------
