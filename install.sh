@@ -76,6 +76,7 @@ print_info() {
 
     Option:
     • --desktop     Run only the desktop theme and login screen steps
+    • --ssh         Run only the SSH key step, then print the public key
     • --dry-run     Print what would be done and exit (non-interactive)
     • -h, --help    Show this message and exit
 
@@ -110,6 +111,7 @@ source "$DOTFILES_DIR/scripts/login_setup.sh"
 
 DO_DRY_RUN=0
 DO_DESKTOP_ONLY=0
+DO_SSH_ONLY=0
 SHOW_HELP=0
 
 for arg in "$@"; do
@@ -122,6 +124,9 @@ for arg in "$@"; do
         ;;
     --desktop)
         DO_DESKTOP_ONLY=1
+        ;;
+    --ssh)
+        DO_SSH_ONLY=1
         ;;
     esac
 done
@@ -143,6 +148,7 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Update system packages"
     print_color $GREEN "  ✓ Install base packages (build-essential, curl, git, python3, cargo...)"
     print_color $GREEN "  ✓ Configure Git (user, defaults, optional SSH key)"
+    print_color $GREEN "  ✓ Or run just one step: --desktop, --ssh"
     print_color $GREEN "  ✓ Install a terminal emulator (Kitty or Alacritty)"
     print_color $GREEN "  ✓ Install fonts (FiraCode Nerd Font, Noto Sans CJK)"
     print_color $GREEN "  ✓ Install the Kitty and Alacritty configurations and themes"
@@ -153,7 +159,7 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     print_color $GREEN "  ✓ Install Pokémon ASCII art on terminal startup (fastfetch + pokeget)"
     print_color $GREEN "  ✓ Install a browser (Brave, Chrome or keep Firefox)"
     print_color $GREEN "  ✓ Install applications: VS Code, JetBrains Toolbox, Postman, DBeaver,"
-    print_color $GREEN "    lazygit, git-delta, k9s, Obsidian, Slack (multi-select)"
+    print_color $GREEN "    lazygit, git-delta, k9s, Obsidian (multi-select)"
     print_color $GREEN "  ✓ Install languages: Node via nvm, Python tooling via pipx,"
     print_color $GREEN "    JDK/Maven/Gradle via SDKMAN, Go (multi-select)"
     print_color $GREEN "  ✓ Install Docker CE, add you to the docker group, optional lazydocker"
@@ -166,7 +172,7 @@ if [ "$DO_DRY_RUN" = "1" ]; then
     exit 0
 fi
 
-if [ "$DO_DESKTOP_ONLY" != "1" ]; then
+if [ "$DO_DESKTOP_ONLY" != "1" ] && [ "$DO_SSH_ONLY" != "1" ]; then
 echo -e "\n\n"
 print_color $WARNING "
     █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
@@ -245,6 +251,14 @@ if ! touch .write_test 2>/dev/null; then
 else
     rm -f .write_test
     log_success "Write permissions verified in: $(pwd)"
+fi
+
+# The unattended run does not create keys, so this is how one gets made
+# afterwards without sitting through the rest of the installer.
+if [ "$DO_SSH_ONLY" = "1" ]; then
+    generate_ssh_key
+    print_post_install_summary
+    exit 0
 fi
 
 if [ "$DO_DESKTOP_ONLY" = "1" ]; then

@@ -163,7 +163,7 @@ Your new development environment will include:
 | **🛠️ CLI Utilities**  | eza, bat, ripgrep, fd, jq, fzf, htop, btop, tree, zoxide               |
 | **🧱 Base Toolchain** | build-essential, curl, wget, git, python3, python3-pip, cargo          |
 | **🎨 Customization**  | fastfetch with a Japanese layout, Pokémon ASCII art on startup         |
-| **🧑‍💻 Applications** | VS Code, JetBrains Toolbox, Postman, DBeaver, Obsidian, Slack |
+| **🧑‍💻 Applications** | VS Code, JetBrains Toolbox, Postman, DBeaver, Obsidian |
 | **🌐 Browser** | Brave, Google Chrome, or keep the Firefox that Ubuntu ships |
 | **🔍 Terminal tools** | lazygit, git-delta, k9s |
 | **📦 Languages** | Node via nvm, Python tooling via pipx, JVM via SDKMAN, Go |
@@ -250,7 +250,6 @@ you want, so nothing lands on the machine just because it was on a list.
 
   Notes and chat
      9) Obsidian               (snap)
-    10) Slack                  (snap)
 
   Enter numbers separated by commas or spaces (for example: 1,3,5)
   Type 'all' for everything, or leave empty to skip.
@@ -265,7 +264,7 @@ the Firefox that Ubuntu already ships.
 | :----- | :----------- | :-- |
 | apt, third-party repo | VS Code, Brave, Chrome, pgAdmin | Upgrades with the rest of the system |
 | apt, Ubuntu archive | lazygit, git-delta | Already packaged |
-| snap | Postman, DBeaver, k9s, Obsidian, Slack | No apt repository exists for these |
+| snap | Postman, DBeaver, k9s, Obsidian | No apt repository exists for these |
 | tarball to `/opt` | JetBrains Toolbox | JetBrains publishes neither a repo nor a snap |
 
 Third-party repositories are registered in deb822 format under
@@ -660,6 +659,7 @@ which goes to `~/.local/bin/`.
 | You already cloned the repo           | `install.sh`   | [Manual install](#-manual-install)          |
 | You only want to re-apply the configs | `install.sh`   | Re-run it and skip the steps you don't need |
 | You only want the desktop and login   | `install.sh`   | `./install.sh --desktop`                    |
+| You only want an SSH key for GitHub   | `install.sh`   | `./install.sh --ssh`                        |
 
 `bootstrap.sh` only clones the repository and then hands over to `install.sh`.
 Once you have a clone, you never need it again.
@@ -891,7 +891,7 @@ pipx uninstall-all
 sudo apt remove --purge golang-go pipx
 
 # Remove the snaps
-sudo snap remove postman dbeaver-ce k9s obsidian slack
+sudo snap remove postman dbeaver-ce k9s obsidian
 
 # Remove applications installed from apt, and their repositories
 sudo apt remove --purge code brave-browser google-chrome-stable lazygit git-delta

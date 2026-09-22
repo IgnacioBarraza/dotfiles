@@ -29,7 +29,6 @@ APPS=(
     "Terminal tools|git-delta|apt|install_git_delta"
     "Terminal tools|k9s|snap|install_k9s"
     "Notes and chat|Obsidian|snap|install_obsidian"
-    "Notes and chat|Slack|snap|install_slack"
 )
 
 setup_apps() {
@@ -393,6 +392,3 @@ install_obsidian() {
     snap_install obsidian
 }
 
-install_slack() {
-    snap_install slack
-}
