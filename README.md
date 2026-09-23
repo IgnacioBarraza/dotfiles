@@ -697,6 +697,16 @@ Two things it deliberately does not do:
 - **No SSH key is generated.** A key made while nobody is watching is a key
   nobody remembers adding to GitHub. Run `./install.sh --ssh` when you want one.
 
+It asks for your sudo password once, up front, and then keeps the credential
+alive for as long as the install runs. sudo forgets a password after fifteen
+minutes and a full install takes longer, so without that the run would stop in
+the middle waiting for a prompt nobody is there to answer. The refresher is
+tied to the installer and goes away with it.
+
+apt and dpkg are told nobody is watching (`DEBIAN_FRONTEND=noninteractive`),
+so a package that ships a changed config file takes the default instead of
+opening a dialog that waits forever.
+
 CI checks that every prompt in the scripts has a matching key in the answers
 file, so a question added later cannot quietly fall back to "no".
 

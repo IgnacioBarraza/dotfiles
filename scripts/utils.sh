@@ -378,3 +378,42 @@ ask() {
     read -rp "$prompt" answer
     printf '%s\n' "${answer:-$default}"
 }
+
+# ---------------------------------------------
+# Unattended runs
+# ---------------------------------------------
+
+# Ask for the sudo password once, then keep the credential alive.
+#
+# An unattended install is an hour of apt, snap and cmake, and sudo forgets a
+# password after fifteen minutes. Without this the run stops dead somewhere in
+# the middle waiting for a prompt nobody is there to answer.
+#
+# The refresher is tied to this shell: it exits when the installer does, so it
+# cannot leave a process behind holding root open.
+sudo_keepalive() {
+    if sudo -n true 2>/dev/null; then
+        log_info "sudo credentials already active"
+    else
+        log_info "Asking for your password once, up front"
+        sudo -v || {
+            log_error "Could not obtain sudo credentials"
+            return 1
+        }
+    fi
+
+    while true; do
+        sudo -n true 2>/dev/null || exit
+        sleep 50
+        kill -0 "$$" 2>/dev/null || exit
+    done &
+
+    SUDO_KEEPALIVE_PID=$!
+    export SUDO_KEEPALIVE_PID
+}
+
+stop_sudo_keepalive() {
+    [ -n "${SUDO_KEEPALIVE_PID:-}" ] || return 0
+    kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    unset SUDO_KEEPALIVE_PID
+}

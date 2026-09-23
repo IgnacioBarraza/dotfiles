@@ -115,6 +115,13 @@ DO_DESKTOP_ONLY=0
 DO_SSH_ONLY=0
 DOTFILES_UNATTENDED=0
 export DOTFILES_UNATTENDED
+
+# apt and dpkg open dialogs of their own when a package ships a changed config
+# file or a debconf question. Those are not prompts this installer can answer,
+# and they wait forever. Telling them nobody is watching makes them take the
+# default instead.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 SHOW_HELP=0
 
 for arg in "$@"; do
@@ -273,6 +280,11 @@ if [ "$DO_DESKTOP_ONLY" = "1" ]; then
     setup_login_screen
     print_post_install_summary
     exit 0
+fi
+
+if [ "$DOTFILES_UNATTENDED" = "1" ]; then
+    sudo_keepalive || exit 1
+    trap stop_sudo_keepalive EXIT
 fi
 
 # Install base packages
